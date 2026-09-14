@@ -50,6 +50,33 @@ lambda_2 = -2;
 
 K_pp = - (lambda_1 + lambda_2)/K_1;
 K_pd = lambda_1*lambda_2/K_1;
+%% 
+A = [0 1 0 
+    0 0 0 
+    0 0 0];
+
+B = [0 0
+    0 K_1
+    K_2 0];
+
+q_1 = 5; % Pitch-vekting
+q_2 = 0.1; % Pitch-rate-vekting
+q_3 = 8; % Elevation-rate-vekting
+
+Q_lqr = [q_1 0 0
+        0 q_2 0
+        0 0 q_3];
+    
+r_1 = 0.1; % V_s-vekting
+r_2 = 0.1; % V_d-vekting
+    
+R_lqr = [r_1 0
+        0 r_2];
+
+K = lqr(A,B,Q_lqr,R_lqr);
+
+F = [K(1,1) K(1,3)
+    K(2,1) K(2,3)];
 
 %%
 
@@ -76,7 +103,7 @@ grid on
 
 %% Saving data
 
-save('verdier_lab_1_v2.mat', 'simout')
+save('q_1_5-q_3_8-x_0.5.mat', 'simout')
 
 
 
