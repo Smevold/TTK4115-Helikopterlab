@@ -45,17 +45,44 @@ K_1 = L_1/J_p;
 K_2 = L_3/J_e;
 K_3 = (2*m_p*l_h - m_c*l_c)*g/J_l;
 
-lambda_1 = -1;
-lambda_2 = -1;
+lambda_1 = -2;
+lambda_2 = -2;
 
 K_pp = - (lambda_1 + lambda_2)/K_1;
 K_pd = lambda_1*lambda_2/K_1;
 
+PORT = 6;
+
+%% 
+A = [0 1 0 0 0 
+    0 0 0 0 0 
+    0 0 0 1 0
+    0 0 0 0 0
+    K_3 0 0 0 0];
+
+B = [0 0
+    0 K_1
+    0 0
+    K_2 0
+    0 0];
+
+C = [0 0 1 0 0
+    0 0 0 0 1];
+
+% Define poles-placement
+P = [-1 -1 -2 -2 -3];
+
+rank(obsv(A, C))
+rank(C')
+L = place(A', C', P).';
+
+eig(A-L*C)
+
 %%
 
-Ts = 0.002;
-t = (0:size(simout,1)-1)' * Ts;
-Fs = 1/Ts;
+% Ts = 0.002;
+% t = (0:size(simout,1)-1)' * Ts;
+% Fs = 1/Ts;
 
 % plot(t, elevationData)
 % legend('elevation')
@@ -63,20 +90,22 @@ Fs = 1/Ts;
 % 
 % t = simData.Time;
 
-travel = simout(:,1);
-travel_rate = simout(:,2);
-pitch = simout(:,3);
-pitch_rate = simout(:,4);
-elevation = simout(:,5);
-elevation_rate = simout(:,6);
+% % % % % % % % % % % % travel = simout.signals.values(:,1);
+% % % % % % % % % % % % travel_rate = simout.signals.values(:,2);
+% % % % % % % % % % % % pitch = simout.signals.values(:,3);
+% % % % % % % % % % % % pitch_rate = simout.signals.values(:,4);
+% % % % % % % % % % % % elevation = simout.signals.values(:,5);
+% % % % % % % % % % % % elevation_rate = simout.signals.values(:,6);
+% % % % % % % % % % % % p_c = simout.signals.values(:,7);
+% % % % % % % % % % % % e_dot_c = simout.signals.values(:,8);
 
-plot(t, simout)
-legend('Travel', 'Travel rate', 'Pitch', 'Pitch rate', 'Elevation', 'Elevation rate')
+plot(simout.time, simout.signals.values)
+legend('Travel', 'Travel rate', 'Pitch', 'Pitch rate', 'Elevation', 'Elevation rate', 'Joystick X', 'Joystick Y', 'accelerometer x-direction', 'accelerometer y-direction', 'accelerometer z-direction', 'gyroscope p-direction', 'gyroscope e-direction', 'gyroscope lambda-direction')
 grid on
 
 %% Saving data
 
-save('verdier_lab_1_v1.mat', 'travel', 'travel_rate', 'pitch', 'pitch_rate', 'elevation', 'elevation_rate', 't') )
+save('AccelGyroManTest_Pitch.mat', 'simout')
 
 
 
