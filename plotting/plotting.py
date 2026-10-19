@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 ## Laster data 
 # Trenger ikke .mat i filnavnet
-data = sio.loadmat('HelikopterParakopter/Verdier_lab_1_v1') # Laster inn dataen fra stien
+data = sio.loadmat('HelikopterParakopter/Lab3/AccelGyroManTest_Horizontal.mat') # Laster inn dataen fra stien
 
 # data['simout'] = [0: travel, 1: travel_rate, 2: pitch, 3: pitch_rate, 4: elevation, 5: elevation_rate]
 
@@ -16,7 +16,8 @@ t = np.arange(sim_array_length) * Ts # Array med samme lengde som simout, med ri
 
 fig, ax = plt.subplots()
 ax.plot(t, data['simout'])
-ax.legend("Travel", "Travel_rate", "Pitch", "Pitch_rate", "Elevation", "Elevation_rate")
+ax.legend(["Travel", "Travel_rate", "Pitch", "Pitch_rate", "Elevation", "Elevation_rate"])
 
 fig.savefig("test.pdf")
 plt.show()
+
