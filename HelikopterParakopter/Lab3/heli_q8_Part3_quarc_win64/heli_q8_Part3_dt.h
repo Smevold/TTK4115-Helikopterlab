@@ -7,9 +7,9 @@
  *
  * Code generation for model "heli_q8_Part3".
  *
- * Model version              : 11.14
+ * Model version              : 11.25
  * Simulink Coder version : 9.4 (R2020b) 29-Jul-2020
- * C source code generated on : Mon Oct  5 15:41:59 2026
+ * C source code generated on : Tue Oct 13 13:59:01 2026
  *
  * Target selection: quarc_win64.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -80,7 +80,7 @@ static const char_T * rtDataTypeNames[] = {
 
 /* data type transitions for block I/O structure */
 static DataTypeTransition rtBTransitions[] = {
-  { (char_T *)(&heli_q8_Part3_B.TravelCounttorad), 0, 0, 42 },
+  { (char_T *)(&heli_q8_Part3_B.ElevationCounttorad), 0, 0, 80 },
 
   { (char_T *)(&heli_q8_Part3_B.StreamCall1_o2), 3, 0, 1 }
   ,
@@ -95,28 +95,31 @@ static DataTypeTransition rtBTransitions[] = {
 
   { (char_T *)(&heli_q8_Part3_DW.HILReadEncoderTimebase_Task), 24, 0, 1 },
 
-  { (char_T *)(&heli_q8_Part3_DW.ToWorkspace1_PWORK.LoggedData), 11, 0, 17 },
+  { (char_T *)(&heli_q8_Part3_DW.ElevationRaterads_PWORK.LoggedData[0]), 11, 0,
+    52 },
 
   { (char_T *)(&heli_q8_Part3_DW.HILInitialize_ClockModes[0]), 6, 0, 46 },
 
   { (char_T *)(&heli_q8_Part3_DW.HILInitialize_POSortedChans[0]), 7, 0, 8 },
+
+  { (char_T *)(&heli_q8_Part3_DW.ToFile_IWORK.Count), 10, 0, 1 },
 
   { (char_T *)(&heli_q8_Part3_DW.StreamCall1_State), 3, 0, 1 }
 };
 
 /* data type transition table for block I/O structure */
 static DataTypeTransitionTable rtBTransTable = {
-  11U,
+  12U,
   rtBTransitions
 };
 
 /* data type transitions for Parameters structure */
 static DataTypeTransition rtPTransitions[] = {
-  { (char_T *)(&heli_q8_Part3_P.Joystick_gain_x), 0, 0, 2 },
+  { (char_T *)(&heli_q8_Part3_P.A[0]), 0, 0, 72 },
 
   { (char_T *)(&heli_q8_Part3_P.HILWriteAnalog_channels[0]), 7, 0, 2 },
 
-  { (char_T *)(&heli_q8_Part3_P.HILInitialize_OOTerminate), 0, 0, 78 },
+  { (char_T *)(&heli_q8_Part3_P.HILInitialize_OOTerminate), 0, 0, 92 },
 
   { (char_T *)(&heli_q8_Part3_P.HILInitialize_CKChannels[0]), 6, 0, 12 },
 
@@ -126,7 +129,7 @@ static DataTypeTransition rtPTransitions[] = {
 
   { (char_T *)(&heli_q8_Part3_P.HILInitialize_Active), 8, 0, 41 },
 
-  { (char_T *)(&heli_q8_Part3_P.HILReadEncoderTimebase_Overflow), 3, 0, 259 }
+  { (char_T *)(&heli_q8_Part3_P.HILReadEncoderTimebase_Overflow), 3, 0, 260 }
 };
 
 /* data type transition table for Parameters structure */

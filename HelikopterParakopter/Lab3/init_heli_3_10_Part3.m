@@ -67,16 +67,61 @@ B = [0 0
     0 0];
 
 C = [0 0 1 0 0
-    0 0 0 0 1];
+     0 0 0 0 1];
+
+% C = eye(5);
 
 % Define poles-placement
-P = [-1 -1 -2 -2 -3];
+p = -8;
+P = [p p+1 p+2 p-2 p-1];
 
+sys = ss(A,B,C,0);
+
+Ob = obsv(sys);
 rank(obsv(A, C))
+Cb = ctrb(sys);
+rank(ctrb(A, B))
 rank(C')
 L = place(A', C', P).';
 
 eig(A-L*C)
+
+%% LQR:
+
+A_lqr = [0 1 0 0 0 
+    0 0 0 0 0 
+    0 0 0 0 0
+    -1 0 0 0 0
+    0 0 -1 0 0];
+
+B_lqr = [0 0
+    0 K_1
+    K_2 0
+    0 0
+    0 0];
+
+q_1 = 3; % Pitch-vekting
+q_2 = 1; % Pitch-rate-vekting
+q_3 = 6; % Elevation-rate-vekting
+q_4 = 2; % Akkumulert pitch-error
+q_5 = 13; % Akkumulert elevation-rate-error
+
+Q_lqr = [q_1 0 0 0 0
+        0 q_2 0 0 0
+        0 0 q_3 0 0
+        0 0 0 q_4 0
+        0 0 0 0 q_5];
+    
+r_1 = 3; % V_s-vekting
+r_2 = 6; % V_d-vekting
+    
+R_lqr = [r_1 0
+        0 r_2];
+
+K = lqr(A_lqr,B_lqr,Q_lqr,R_lqr);
+
+F = [K(1,1) K(1,3)
+    K(2,1) K(2,3)];
 
 %%
 
@@ -105,7 +150,7 @@ grid on
 
 %% Saving data
 
-save('AccelGyroManTest_Pitch.mat', 'simout')
+save('2_3_2_TransGyroCompare_WithEncoder.mat', 'simout')
 
 
 
