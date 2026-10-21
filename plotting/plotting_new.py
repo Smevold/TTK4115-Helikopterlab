@@ -2,6 +2,7 @@ import os
 import numpy as np
 import scipy.io as sio  # Scipy input output har funksjon for lesing av .mat-filer
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 
 
 def load_mat(path, Ts=0.002):
@@ -42,7 +43,7 @@ def load_mat(path, Ts=0.002):
 
 
 ## Laster data
-path = 'HelikopterParakopter/Lab2/høy_q_5_lav_q_4.mat'
+path = 'HelikopterParakopter/Lab3/2_3_3_PolesAtneg8_WithPush.mat'
 t, values = load_mat(path)
 
 # Hopp over starten av målingen (sensorene hopper ofte helt i begynnelsen).
@@ -96,14 +97,14 @@ MAX_SUBPLOTS = 5
 # Hvert subplot: (tittel, [kolonner som skal plottes]). Kolonnenumrene er indeksene i `signals` over.
 # Kommenter inn/ut linjer for å velge hvor mange subplots du vil ha.
 subplots = [
-    ("Encoder [rad]",                 [0, 2, 4]),
-    ("Encoder rate [rad/s]",          [1, 3, 5]),
-    ("Joystick",                [6, 7]),
-    # ("Pitch [rad]",           [2, 14]),
-    # ("Pitch rate [rad/s]",     [3, 11, 16]),
-    # ("Elevation [rad]",       [4, 15]),
-    # ("Elevation rate [rad/s]", [5, 12, 17]),
-    # ("Travel rate [rad/s]",    [1, 13, 18]),
+    # ("Encoder [rad]",                 [0, 2, 4]),
+    # ("Encoder rate [rad/s]",          [1, 3, 5]),
+    # ("Joystick",                [6, 7]),
+     ("Pitch [rad]",           [2, 14]),
+     ("Pitch rate [rad/s]",     [3, 11, 16]),
+     ("Elevation [rad]",       [4, 15]),
+     ("Elevation rate [rad/s]", [5, 12, 17]),
+     ("Travel rate [rad/s]",    [1, 13, 18]),
     # ("Accelerometer [m/s²]",   [8, 9, 10]),
     # ("Everything",             list(range(len(signals)))),
 ]
@@ -124,6 +125,25 @@ for title, indices in subplots:
         print(f"  '{title}': ingen signaler igjen, subplottet fjernes")
 subplots = filtered
 
+## Størrelse og skrift
+# Figuren lages i samme størrelse som den får i rapporten, så skriftstørrelsen blir riktig.
+# Sett fig_width_cm lik tekstbredden i rapporten (\textwidth i LaTeX, typisk ca. 16 cm på A4),
+# og sett inn PDF-en med samme bredde, f.eks. \includegraphics[width=\textwidth]{...}.
+fig_width_cm = 16
+subplot_height_cm = 5.0   # høyde per subplot (inkludert legend under)
+font_size = 12            # pt, all tekst i plottet
+legend_max_cols = 4       # maks antall signaler per rad i legenden (flere -> ny rad)
+
+plt.rcParams.update({
+    "font.size":       font_size,
+    "axes.titlesize":  font_size,
+    "axes.labelsize":  font_size,
+    "xtick.labelsize": font_size,
+    "ytick.labelsize": font_size,
+    "legend.fontsize": font_size,
+})
+CM = 1 / 2.54  # matplotlib bruker tommer
+
 ## Plotting
 assert 1 <= len(subplots) <= MAX_SUBPLOTS, f"Velg mellom 1 og {MAX_SUBPLOTS} subplots (har {len(subplots)})"
 
@@ -133,6 +153,10 @@ line_alpha = 0.7
 # så det SISTE signalet havner ØVERST. Bytt rekkefølge der for å endre hva som ligger på toppen.
 # Sett reverse_draw_order = True for å snu rekkefølgen i alle subplots (legenden beholder lista-rekkefølgen).
 reverse_draw_order = False
+
+# True  = y-aksen sentreres rundt 0 (like langt opp som ned)
+# False = y-aksen tilpasses dataene automatisk
+center_zero = True
 
 # Grenser for tidsaksen [s] (gjelder alle subplots)
 # None = automatisk: hele målingen vises, med 0.05 s luft på hver side.
@@ -147,13 +171,18 @@ if x_max is None:
 visible = (t >= x_min) & (t <= x_max)
 t_vis, values_vis = t[visible], values[visible]
 
-fig, axes = plt.subplots(len(subplots), 1, figsize=(12, 2.6 * len(subplots) + 0.6),
+fig, axes = plt.subplots(len(subplots), 1, figsize=(fig_width_cm * CM, subplot_height_cm * len(subplots) * CM + 1.0 * CM),
                          sharex=True, squeeze=False, layout="constrained")
 axes = axes[:, 0]
 
 for ax, (title, indices) in zip(axes, subplots):
     used = {}  # teller hvor mange signaler fra hver kilde som er brukt i dette subplottet
     n = len(indices)
+    # Tittelen sier allerede hva som måles, så legenden viser bare kilden (f.eks. "Encoder").
+    # Er det flere signaler fra samme kilde i subplottet, vises hele navnet så de kan skilles.
+    src_count = {}
+    for i in indices:
+        src_count[signals[i][0]] = src_count.get(signals[i][0], 0) + 1
     for pos, i in enumerate(indices):
         src = signals[i][0]
         k = used.get(src, 0)
@@ -164,16 +193,30 @@ for ax, (title, indices) in zip(axes, subplots):
                 linewidth=1.5,
                 alpha=line_alpha,
                 zorder=(n - pos) if reverse_draw_order else (pos + 1),
-                label=labels[i])
-    ax.set_title(title, loc="left", fontsize=10)
+                label=signals[i][0] if src_count[signals[i][0]] == 1 else labels[i])
+    if center_zero:
+        y_lo, y_hi = ax.get_ylim()  # automatisk skalering, inkludert litt luft
+        y_abs = max(abs(y_lo), abs(y_hi))
+        ax.set_ylim(-y_abs, y_abs)
+    ax.set_title(title, loc="left")
     ax.grid(True, alpha=0.3)
-    # Legend utenfor plottet, til høyre
-    leg = ax.legend(fontsize="small", loc="center left", bbox_to_anchor=(1.01, 0.5))
+    # Legend under subplottet, sentrert, med signalene ved siden av hverandre
+    # Tidstallene vises på alle subplots, og legenden legges rett under dem
+    ax.tick_params(labelbottom=True)
+    # x = midten av hele figuren, y = bunnen av subplottet. Da kan legenden bruke hele figurbredden.
+    anchor = mtransforms.blended_transform_factory(fig.transFigure, ax.transAxes)
+    leg = ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0), bbox_transform=anchor,
+                    ncol=min(len(indices), legend_max_cols),
+                    frameon=False, handlelength=1.0, handletextpad=0.4, columnspacing=0.9,
+                    borderaxespad=1.6)  # avstand i skriftstørrelser, så den havner under tidstallene
+    leg.set_in_layout(False)  # ikke la legenden presse plottene smalere
     for line in leg.get_lines():  # tykkere og helt dekkende linjer i legenden, så fargene er lette å se
         line.set_linewidth(2)
         line.set_alpha(1)
 
-axes[-1].set_xlabel("Tid [s]")
+# Ekstra vertikal luft mellom subplots, der legendene ligger (i tommer)
+fig.get_layout_engine().set(h_pad=0.15)
+fig.supxlabel("Tid [s]", fontsize=font_size)  # nederst i figuren, under siste legend
 axes[-1].set_xlim(x_min, x_max)  # gjelder alle subplots pga. sharex
 
 ## Lagre PDF i samme mappe som .mat-filen, med samme navn
