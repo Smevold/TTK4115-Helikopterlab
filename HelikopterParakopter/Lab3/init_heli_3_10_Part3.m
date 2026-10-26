@@ -143,14 +143,14 @@ F = [K(1,1) K(1,3)
 % % % % % % % % % % % % elevation_rate = simout.signals.values(:,6);
 % % % % % % % % % % % % p_c = simout.signals.values(:,7);
 % % % % % % % % % % % % e_dot_c = simout.signals.values(:,8);
-
-plot(simout.time, simout.signals.values)
-legend('Travel', 'Travel rate', 'Pitch', 'Pitch rate', 'Elevation', 'Elevation rate', 'Joystick X', 'Joystick Y', 'accelerometer x-direction', 'accelerometer y-direction', 'accelerometer z-direction', 'gyroscope p-direction', 'gyroscope e-direction', 'gyroscope lambda-direction')
-grid on
+% 
+% plot(simout.time, simout.signals.values)
+% legend('Travel', 'Travel rate', 'Pitch', 'Pitch rate', 'Elevation', 'Elevation rate', 'Joystick X', 'Joystick Y', 'accelerometer x-direction', 'accelerometer y-direction', 'accelerometer z-direction', 'gyroscope p-direction', 'gyroscope e-direction', 'gyroscope lambda-direction')
+% grid on
 
 %% Saving data
 
-save('2_3_2_TransGyroCompare_WithEncoder.mat', 'simout')
+% save('Bruh.mat', 'simout')
 
 
 
