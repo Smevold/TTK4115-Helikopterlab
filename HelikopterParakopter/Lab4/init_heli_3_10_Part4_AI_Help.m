@@ -123,7 +123,13 @@ K = lqr(A_lqr,B_lqr,Q_lqr,R_lqr);
 F = [K(1,1) K(1,3)
     K(2,1) K(2,3)];
 
-%% Kalman
+%% Kalman: akselerometervinkler + gyro-rater
+% Endret 2026-11-02, se Lab4_Kalman_analyse.md i Obsidian (TTK4115_Linsys/Lab).
+% Tilstand: x = [p; pdot; e; edot; lambda; lambdadot]
+% Måling:   y = [p_acc; pdot_gyro; e_acc; edot_gyro; int(lambdadot_gyro); lambdadot_gyro]
+%           Samme rekkefølge som Mux3 i Kalman-subsystemet.
+
+Ts = 0.002;
 
 A_K = [0 1 0 0 0 0
     0 0 0 0 0 0
@@ -139,155 +145,82 @@ B_K = [0 0
     0 0
     0 0];
 
-C_K = eye(6);
-D_K = zeros(6,2);
+bruk_bias     = false;   % true: bonus 2, gyro-bias som tilstander (9 tilstander, se Simulink-punkt 4 nederst)
+bruk_van_loan = false;   % true: bonus 1, Q_d regnes ut med Van Loan (gir samme Q_d)
 
-Ts = 0.002;
+%% Målestøy R_d fra hover-logg (oppgave 2.4.1)
+% Kolonner i loggen (Mux-en til To File / To Workspace):
+%   15 p_acc, 16 e_acc, 17 pdot, 18 edot, 19 lambdadot, 22 int(lambdadot)
+% Ta en ny hover-logg etter at 0.4768-offseten er fjernet, og bytt filnavn under.
+hover_fil   = '2_4_1_LyingStill.mat';
+hover_rader = 2500:5000;               % rolig hover-vindu (sample-nummer)
+y_kolonner  = [15 17 16 18 22 19];     % samme rekkefølge som y
 
-sys = ss(A_K,B_K,C_K,D_K);
-sysd = c2d(sys, Ts, 'zoh');
+H = load(hover_fil);
+if isfield(H, 'simout')
+    V = H.simout.signals.values;       % To Workspace (Structure With Time)
+else
+    V = H.ans(2:end, :)';              % To File: første rad er tid
+end
+Y_hover = V(hover_rader, y_kolonner);
 
-A_d = sysd.A;
-B_d = sysd.B;
-C_d = sysd.C;
+R_full = cov(Y_hover);                 % hele matrisen, til rapporten
+R_d2   = diag(diag(R_full));           % bare diagonalen brukes i filteret
+% Korrelasjonene i R_full (p_acc-e_acc ca. 0.8, pdot-lambdadot ca. 0.9) er vibrasjon og
+% ekte bevegelse, ikke uavhengig målestøy. Med hele matrisen fikk edot en bias på ca. -0.04 rad/s.
 
-x_0 = [0;0;0;0;0;0]; %-0.523333333333333
-P_0 = zeros(6);
+% Gamle verdier (kolonne 17:22 = [pdot edot lambdadot int(pdot) int(edot) int(lambdadot)],
+% feil rekkefølge i forhold til y). Brukes ikke, bare til sammenligning i rapporten.
+R_d1_gammel = [4.65653328279899e-07,3.49834077169025e-08,1.30597186346466e-08,2.56802213150077e-07,-1.74647211463784e-06,-9.82778674936143e-07;3.49834077169025e-08,7.03644267856449e-07,8.05499160151576e-08,-1.61141032368164e-08,1.12780821505476e-07,6.31147880952989e-08;1.30597186346466e-08,8.05499160151576e-08,5.47618551870970e-07,2.46906006681541e-07,-1.70404109693680e-06,-9.64536589444343e-07;2.56802213150077e-07,-1.61141032368164e-08,2.46906006681541e-07,1.68557957202342e-05,-0.000114872043212648,-6.47863088634731e-05;-1.74647211463784e-06,1.12780821505476e-07,-1.70404109693680e-06,-0.000114872043212648,0.000783460784200803,0.000441904818834722;-9.82778674936143e-07,6.31147880952989e-08,-9.64536589444343e-07,-6.47863088634731e-05,0.000441904818834722,0.000249263385610476];
+R_d2_gammel = cov(V(hover_rader, 17:22));
 
-q = 1;
-Q_d = q*eye(6);
+%% Prosesstøy Q_d
+% Tunet offline mot encoder, deretter ganget med 3 for å passe til R_d fra cov.
+q_diag = [3e-12 3e-5 6e-8 1.5e-5 0.6 1.5e-7];   % [p pdot e edot lambda lambdadot]
+Q_d6   = diag(q_diag);
+% Enkel variant som også fungerer: Q_d6 = 1e-5*eye(6);
 
-%% Estimering av støy
+if bruk_van_loan
+    % Van Loan (bonus 1): Q_c = Q_d/Ts gir tilnærmet samme Q_d
+    Q_c = Q_d6/Ts;
+    M   = [-A_K, Q_c; zeros(6), A_K']*Ts;
+    Mx  = expm(M);
+    Q_d6 = Mx(7:12, 7:12)' * Mx(1:6, 7:12);
+end
 
-% Gyro_p = simout.signals.values(:,17);
-% Gyro_p_dot = simout.signals.values(:,18);
-% Gyro_e = simout.signals.values(:,19);
-% Gyro_e_dot = simout.signals.values(:,20);
-% Gyro_l = simout.signals.values(:,21);
-% Gyro_l_dot = simout.signals.values(:,22);
-% 
-% Gyro = simout.signals.values(2500:5000,17:22);
-% 
-% R_d = cov(Gyro);
+%% Diskretisering og startverdier
+if ~bruk_bias
+    sysd = c2d(ss(A_K, B_K, eye(6), zeros(6,2)), Ts, 'zoh');
+    A_d = sysd.A;  B_d = sysd.B;  C_d = sysd.C;
+    Q_d = Q_d6;
+    x_0 = [0; 0; -0.43; 0; 0; 0];      % e fra akselerometeret i hvile (absolutt vinkel)
+    P_0 = 0.01*eye(6);
+else
+    % Bonus 2: bias på pdot-, edot- og lambdadot-gyroen: y_rate = rate + b
+    S = zeros(6,3);  S(2,1) = 1;  S(4,2) = 1;  S(6,3) = 1;
+    A_b = blkdiag(A_K, zeros(3));
+    B_b = [B_K; zeros(3,2)];
+    sysb = c2d(ss(A_b, B_b, [eye(6) S], zeros(6,2)), Ts, 'zoh');
+    A_d = sysb.A;  B_d = sysb.B;  C_d = sysb.C;    % C_d er 6x9
+    Q_d = blkdiag(Q_d6, diag([3e-12 6e-9 3e-12]));
+    x_0 = [0; 0; -0.43; 0; 0; 0; 0; 0; 0];
+    P_0 = blkdiag(0.01*eye(6), 0.02^2*eye(3));
+    % R_d2 er fortsatt 6x6. Biasene måles ikke direkte.
+end
+n_x = size(A_d, 1);
+fprintf('Kalman: %d tilstander, rang(obsv(A_d, C_d)) = %d\n', n_x, rank(obsv(A_d, C_d)));
 
-
-% R_d from the helicopter lying still
-R_d1 = [4.65653328279899e-07,3.49834077169025e-08,1.30597186346466e-08,2.56802213150077e-07,-1.74647211463784e-06,-9.82778674936143e-07;3.49834077169025e-08,7.03644267856449e-07,8.05499160151576e-08,-1.61141032368164e-08,1.12780821505476e-07,6.31147880952989e-08;1.30597186346466e-08,8.05499160151576e-08,5.47618551870970e-07,2.46906006681541e-07,-1.70404109693680e-06,-9.64536589444343e-07;2.56802213150077e-07,-1.61141032368164e-08,2.46906006681541e-07,1.68557957202342e-05,-0.000114872043212648,-6.47863088634731e-05;-1.74647211463784e-06,1.12780821505476e-07,-1.70404109693680e-06,-0.000114872043212648,0.000783460784200803,0.000441904818834722;-9.82778674936143e-07,6.31147880952989e-08,-9.64536589444343e-07,-6.47863088634731e-05,0.000441904818834722,0.000249263385610476];
-R_d2 = [0.00306863744050679,0.00597898155272382,0.00292964415525621,4.38149043481465e-05,4.15450305267450e-05,0.000115689192015894;0.00597898155272382,0.0660544256194300,0.00894879886876270,5.18858244272164e-06,-4.85973444756856e-05,2.72329175898819e-05;0.00292964415525621,0.00894879886876270,0.00339091623047310,-4.52253473117218e-05,-1.27627393089588e-05,-3.74321106219478e-05;4.38149043481465e-05,5.18858244272164e-06,-4.52253473117218e-05,0.000201720907872831,0.000134760684249710,0.000373145380848365;4.15450305267450e-05,-4.85973444756856e-05,-1.27627393089588e-05,0.000134760684249710,0.000118374148641113,0.000325639980324475;0.000115689192015894,2.72329175898819e-05,-3.74321106219478e-05,0.000373145380848365,0.000325639980324475,0.000913654220575349];
-
-R_d2/R_d1
-
-%% Van Loan Metode
-
-
-% n = size(A_K,1);
-% 
-% G = eye(n);
-% Q_c = q*eye(n);
-% 
-% M = [-A_K G*Q_c*G
-%     zeros(n) A_K']*Ts;
-% 
-% Mx = expm(M);
-% A_d = Mx(n+1:end, n+1:end)';
-% Q_d = A_d * Mx(1:n, n+1:end);
-
-%% Bias Korreksjon
-
-% A_B = [0 1 0 0 0 0
-%     0 0 0 0 0 0
-%     0 0 0 1 0 0
-%     0 0 0 0 0 0
-%     0 0 0 0 0 1
-%     0 0 0 0 0 0];
-% 
-% A_K = blkdiag(A_K, A_B);
-% 
-% B_K = [B_K
-%     zeros(6,2)];
-% 
-% C_K = eye(12);
-% 
-% D_K = zeros(12,2);
-% 
-% sys = ss(A_K,B_K,C_K,D_K);
-% sysd = c2d(sys, Ts, 'zoh');
-% 
-% A_d = sysd.A;
-% B_d = sysd.B;
-% C_d = sysd.C;
-% 
-% x_0 = [0;0;0;0;0;0 %-0.523333333333333
-%     zeros(6,1)];
-% P_0 = zeros(12);
-% 
-% R_d2 = blkdiag(R_d2, 10^-3*R_d2);
-
-%% Van Loan 2
-
-% q1 = 100;
-% q2 = 10000;
-% 
-% n = size(A_K,1);
-% 
-% G = eye(n);
-% % Q_c = [q1 0 0 0 0 0 0 0 0 0 0 0
-% %     0 q1 0 0 0 0 0 0 0 0 0 0
-% %     0 0 q1 0 0 0 0 0 0 0 0 0
-% %     0 0 0 q1 0 0 0 0 0 0 0 0
-% %     0 0 0 0 q1 0 0 0 0 0 0 0
-% %     0 0 0 0 0 q1 0 0 0 0 0 0
-% %     0 0 0 0 0 0 q2 0 0 0 0 0
-% %     0 0 0 0 0 0 0 q2 0 0 0 0
-% %     0 0 0 0 0 0 0 0 q2 0 0 0
-% %     0 0 0 0 0 0 0 0 0 q2 0 0
-% %     0 0 0 0 0 0 0 0 0 0 q2 0
-% %     0 0 0 0 0 0 0 0 0 0 0 q2];
-% 
-% Q_c = q1*R_d2;
-% 
-% M = [-A_K G*Q_c*G
-%     zeros(n) A_K']*Ts;
-% 
-% Mx = expm(M);
-% Ad = Mx(n+1:end, n+1:end)';
-% Q_d = Ad * Mx(1:n, n+1:end);
-% 
-% Ob = obsv(sys);
-% rank(obsv(A_d, C_d))
-% Cb = ctrb(sys);
-% rank(ctrb(A_d, B_d))
-% rank(C_d')
-
-%% Kalman: akselerometervinkler + gyro-rater
-% y = [p_acc; pdot_gyro; e_acc; edot_gyro; int(lambdadot_gyro); lambdadot_gyro]
-
-sysd = c2d(ss(A_K, B_K, C_K, D_K), Ts, 'zoh');
-
-A_d = sysd.A;  B_d = sysd.B;  C_d = sysd.C;
-
-sigma = [0.062 0.05 0.276 0.125 0.1 0.02];   % IMU-feil mot encoder i flukt
-R_d2  = diag(sigma.^2);                    % beholder navnet Simulink bruker
-Q_d   = diag([1e-12 1e-5 2e-8 5e-6 0.2 5e-8]);
-
-% Samme Q_d med Van Loan (bonus 1): Q_c = Q_d/Ts
-% Q_c = diag([5e-10 5e-3 1e-5 2.5e-3 100 2.5e-5]);
-% M = [-A_K, Q_c; zeros(6), A_K']*Ts;  Mx = expm(M);
-% Q_d = Mx(7:12,7:12)' * Mx(1:6,7:12);
-
-x_0 = [0; 0; -0.43; 0; 0; 0];    % e fra akselerometeret i hvile
-P_0 = 0.01*eye(6);
-
-%% Bonus 2: gyro-bias som tilstander (9 tilstander)
-S = zeros(6,3);  S(2,1) = 1;  S(4,2) = 1;  S(6,3) = 1;   % y_rate = rate + b
-A_b = blkdiag(A_K, zeros(3));  B_b = [B_K; zeros(3,2)];
-sysb = c2d(ss(A_b, B_b, [eye(6) S], zeros(6,2)), Ts, 'zoh');
-A_d = sysb.A;  B_d = sysb.B;  C_d = sysb.C;            % C_d er 6x9
-Q_d = blkdiag(Q_d, diag([1e-12 2e-9 1e-12]));
-x_0 = [x_0; 0; 0; 0];
-P_0 = blkdiag(P_0, 0.02^2*eye(3));
-% R_d2 er uendret (6x6). Ingen null-målinger av biasene.
-% Husk: x_posteriori-porten og Demux-ene som deler x_hat må ha 9 elementer.
+%% Endringer i Simulink (heli_q8_Part4_AI_Help.slx)
+% - 0.4768 fjernet i Gyro_Math, euler_angles inn i Kalman-subsystemet, Mux3 = 6 innganger,
+%   Demux-ene som deler x_hat = 6 utganger.
+% - Correction: x_posteriori og P_posteriori har arvet størrelse (-1), og korreksjonen
+%   kjøres bare når new_data er 1 (ellers x_hat = x_bar, P_hat = P_bar).
+% - IMU "New data" -> Data Type Conversion (double) -> Manual Switch "New data av/paa"
+%   -> Kalman-subsystemet (inngang 5). Andre posisjon på bryteren er konstant 0
+%   (ingen nye data), til oppgave 2.4.3.
+% - gyro_vec_to_euler_rates: theta begrenset til +-1.2 rad.
+% Med bruk_bias = true må Demux-ene som deler x_hat (toppnivå og i LQR) ha 9 utganger.
+% LQR-en skal fortsatt bare bruke p, pdot og edot.
 
 %%
 
