@@ -7,9 +7,9 @@
  *
  * Code generation for model "heli_q8_Part3".
  *
- * Model version              : 11.26
+ * Model version              : 11.27
  * Simulink Coder version : 9.4 (R2020b) 29-Jul-2020
- * C source code generated on : Mon Oct 26 17:51:38 2026
+ * C source code generated on : Tue Nov  3 09:25:11 2026
  *
  * Target selection: quarc_win64.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -1937,10 +1937,10 @@ RT_MODEL_heli_q8_Part3_T *heli_q8_Part3(void)
   heli_q8_Part3_M->Timing.stepSize2 = 0.01;
 
   /* External mode info */
-  heli_q8_Part3_M->Sizes.checksums[0] = (2606014768U);
-  heli_q8_Part3_M->Sizes.checksums[1] = (2937148118U);
-  heli_q8_Part3_M->Sizes.checksums[2] = (1238982892U);
-  heli_q8_Part3_M->Sizes.checksums[3] = (961066477U);
+  heli_q8_Part3_M->Sizes.checksums[0] = (159675802U);
+  heli_q8_Part3_M->Sizes.checksums[1] = (1051859192U);
+  heli_q8_Part3_M->Sizes.checksums[2] = (2466207651U);
+  heli_q8_Part3_M->Sizes.checksums[3] = (1212425377U);
 
   {
     static const sysRanDType rtAlwaysEnabled = SUBSYS_RAN_BC_ENABLE;

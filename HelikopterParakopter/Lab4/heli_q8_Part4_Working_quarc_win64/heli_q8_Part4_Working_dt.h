@@ -7,9 +7,9 @@
  *
  * Code generation for model "heli_q8_Part4_Working".
  *
- * Model version              : 11.50
+ * Model version              : 11.52
  * Simulink Coder version : 9.4 (R2020b) 29-Jul-2020
- * C source code generated on : Mon Oct 26 18:35:36 2026
+ * C source code generated on : Tue Nov  3 09:03:24 2026
  *
  * Target selection: quarc_win64.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -80,12 +80,14 @@ static const char_T * rtDataTypeNames[] = {
 
 /* data type transitions for block I/O structure */
 static DataTypeTransition rtBTransitions[] = {
-  { (char_T *)(&heli_q8_Part4_Working_B.ElevationCounttorad), 0, 0, 399 },
+  { (char_T *)(&heli_q8_Part4_Working_B.ElevationCounttorad), 0, 0, 163 },
 
-  { (char_T *)(&heli_q8_Part4_Working_B.StreamCall1_o2), 3, 0, 1 }
+  { (char_T *)(&heli_q8_Part4_Working_B.StreamCall1_o2), 3, 0, 1 },
+
+  { (char_T *)(&heli_q8_Part4_Working_B.StreamRead1_o3), 8, 0, 1 }
   ,
 
-  { (char_T *)(&heli_q8_Part4_Working_DW.UnitDelay2_DSTATE), 0, 0, 237 },
+  { (char_T *)(&heli_q8_Part4_Working_DW.UnitDelay2_DSTATE), 0, 0, 123 },
 
   { (char_T *)(&heli_q8_Part4_Working_DW.StreamCall1_Stream), 14, 0, 1 },
 
@@ -97,7 +99,7 @@ static DataTypeTransition rtBTransitions[] = {
   },
 
   { (char_T *)(&heli_q8_Part4_Working_DW.ElevationRaterads_PWORK.LoggedData[0]),
-    11, 0, 60 },
+    11, 0, 48 },
 
   { (char_T *)(&heli_q8_Part4_Working_DW.HILInitialize_ClockModes[0]), 6, 0, 46
   },
@@ -112,17 +114,17 @@ static DataTypeTransition rtBTransitions[] = {
 
 /* data type transition table for block I/O structure */
 static DataTypeTransitionTable rtBTransTable = {
-  12U,
+  13U,
   rtBTransitions
 };
 
 /* data type transitions for Parameters structure */
 static DataTypeTransition rtPTransitions[] = {
-  { (char_T *)(&heli_q8_Part4_Working_P.A_d[0]), 0, 0, 773 },
+  { (char_T *)(&heli_q8_Part4_Working_P.A_d[0]), 0, 0, 215 },
 
   { (char_T *)(&heli_q8_Part4_Working_P.HILWriteAnalog_channels[0]), 7, 0, 2 },
 
-  { (char_T *)(&heli_q8_Part4_Working_P.HILInitialize_OOTerminate), 0, 0, 93 },
+  { (char_T *)(&heli_q8_Part4_Working_P.HILInitialize_OOTerminate), 0, 0, 91 },
 
   { (char_T *)(&heli_q8_Part4_Working_P.HILInitialize_CKChannels[0]), 6, 0, 12 },
 

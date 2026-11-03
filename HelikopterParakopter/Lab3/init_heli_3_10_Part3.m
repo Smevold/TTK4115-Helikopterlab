@@ -51,7 +51,7 @@ lambda_2 = -2;
 K_pp = - (lambda_1 + lambda_2)/K_1;
 K_pd = lambda_1*lambda_2/K_1;
 
-PORT = 6;
+PORT = 5;
 
 %% 
 A = [0 1 0 0 0 

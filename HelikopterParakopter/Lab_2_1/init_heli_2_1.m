@@ -59,17 +59,18 @@ B = [0 0
     0 K_1
     K_2 0];
 
-q_1 = 5; % Pitch-vekting
-q_2 = 8; % Pitch-rate-vekting
-q_3 = 10; % Elevation-rate-vekting
+q_1 = 3; % Pitch-vekting
+q_2 = 1; % Pitch-rate-vekting
+q_3 = 6; % Elevation-rate-vekting
+r_1 = 50; % V_s-vekting
+r_2 = 50; % V_d-vekting
+
 
 Q_lqr = [q_1 0 0
         0 q_2 0
         0 0 q_3];
     
-r_1 = 2; % V_s-vekting
-r_2 = 8; % V_d-vekting
-    
+
 R_lqr = [r_1 0
         0 r_2];
 
@@ -77,34 +78,6 @@ K = lqr(A,B,Q_lqr,R_lqr);
 
 F = [K(1,1) K(1,3)
     K(2,1) K(2,3)];
-
-%%
-
-% Ts = 0.002;
-% t = (0:size(simout,1)-1)' * Ts;
-% Fs = 1/Ts;
-
-% plot(t, elevationData)
-% legend('elevation')
-% grid on
-% 
-% t = simData.Time;
-
-travel = simout.signals.values(:,1);
-travel_rate = simout.signals.values(:,2);
-pitch = simout.signals.values(:,3);
-pitch_rate = simout.signals.values(:,4);
-elevation = simout.signals.values(:,5);
-elevation_rate = simout.signals.values(:,6);
-
-plot(simout.time, simout.signals.values)
-legend('Travel', 'Travel rate', 'Pitch', 'Pitch rate', 'Elevation', 'Elevation rate')
-grid on
-
-%% Saving data
-
-save('q_1_5-q_2_8-q_3_10-r_1_2-r_2_8-x_0.5.mat', 'simout')
-
 
 
 

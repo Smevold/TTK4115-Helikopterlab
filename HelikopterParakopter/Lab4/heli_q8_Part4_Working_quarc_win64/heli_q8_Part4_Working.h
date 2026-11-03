@@ -7,9 +7,9 @@
  *
  * Code generation for model "heli_q8_Part4_Working".
  *
- * Model version              : 11.50
+ * Model version              : 11.52
  * Simulink Coder version : 9.4 (R2020b) 29-Jul-2020
- * C source code generated on : Mon Oct 26 18:35:36 2026
+ * C source code generated on : Tue Nov  3 09:03:24 2026
  *
  * Target selection: quarc_win64.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -888,8 +888,6 @@ typedef struct {
   real_T Gain1[3];                     /* '<S6>/Gain1' */
   real_T Gain2[3];                     /* '<S6>/Gain2' */
   real_T Sum;                          /* '<S4>/Sum' */
-  real_T p;                            /* '<S8>/Integrator2' */
-  real_T e;                            /* '<S8>/Integrator1' */
   real_T lambda;                       /* '<S8>/Integrator3' */
   real_T V_s_tilde;                    /* '<S9>/Unit Delay2' */
   real_T V_d;                          /* '<S9>/Unit Delay' */
@@ -908,7 +906,7 @@ typedef struct {
   real_T Integrator2;                  /* '<Root>/Integrator2' */
   real_T Integrator3;                  /* '<Root>/Integrator3' */
   real_T Integrator4;                  /* '<Root>/Integrator4' */
-  real_T TmpSignalConversionAtToFileInpo[34];
+  real_T TmpSignalConversionAtToFileInpo[28];
   real_T gamma;                        /* '<S9>/gamma' */
   real_T zeta;                         /* '<S9>/zeta' */
   real_T F[2];                         /* '<S9>/F' */
@@ -917,22 +915,23 @@ typedef struct {
   real_T Sum2;                         /* '<S9>/Sum2' */
   real_T Sum3;                         /* '<S9>/Sum3' */
   real_T K_ei;                         /* '<S11>/K_ei' */
-  real_T x_priori[12];                 /* '<S8>/Prediction' */
-  real_T P_priori[144];                /* '<S8>/Prediction' */
-  real_T x_posteriori[12];             /* '<S8>/Correction' */
-  real_T P_posteriori[144];            /* '<S8>/Correction' */
-  real_T p_a;                          /* '<S4>/Pitch_Transformation' */
+  real_T x_priori[6];                  /* '<S8>/Prediction' */
+  real_T P_priori[36];                 /* '<S8>/Prediction' */
+  real_T x_posteriori[6];              /* '<S8>/Correction' */
+  real_T P_posteriori[36];             /* '<S8>/Correction' */
+  real_T p;                            /* '<S4>/Pitch_Transformation' */
   real_T euler_rates[3];
          /* '<Root>/Gyro vector to [pitch rate, elevation rate, travel rate]' */
   uint8_T StreamCall1_o2;              /* '<S6>/Stream Call1' */
+  boolean_T StreamRead1_o3;            /* '<S6>/Stream Read1' */
 } B_heli_q8_Part4_Working_T;
 
 /* Block states (default storage) for system '<Root>' */
 typedef struct {
   real_T UnitDelay2_DSTATE;            /* '<S9>/Unit Delay2' */
   real_T UnitDelay_DSTATE;             /* '<S9>/Unit Delay' */
-  real_T UnitDelay1_DSTATE[12];        /* '<S8>/Unit Delay1' */
-  real_T UnitDelay_DSTATE_m[144];      /* '<S8>/Unit Delay' */
+  real_T UnitDelay1_DSTATE[6];         /* '<S8>/Unit Delay1' */
+  real_T UnitDelay_DSTATE_m[36];       /* '<S8>/Unit Delay' */
   real_T UnitDelay1_DSTATE_c;          /* '<S9>/Unit Delay1' */
   real_T HILInitialize_AIMinimums[8];  /* '<Root>/HIL Initialize' */
   real_T HILInitialize_AIMaximums[8];  /* '<Root>/HIL Initialize' */
@@ -971,10 +970,6 @@ typedef struct {
   } Pitchrad_PWORK;                    /* '<Root>/Pitch [rad]' */
 
   struct {
-    void *LoggedData[6];
-  } Scope_PWORK;                       /* '<Root>/Scope' */
-
-  struct {
     void *FilePtr;
   } ToFile_PWORK;                      /* '<Root>/To File' */
 
@@ -996,18 +991,6 @@ typedef struct {
 
   struct {
     void *LoggedData;
-  } e_dotrads_PWORK;                   /* '<Root>/e_dot [rad//s]' */
-
-  struct {
-    void *LoggedData;
-  } lambda_dotrads_PWORK;              /* '<Root>/lambda_dot [rad//s]' */
-
-  struct {
-    void *LoggedData;
-  } p_dotrads_PWORK;                   /* '<Root>/p_dot [rad//s]' */
-
-  struct {
-    void *LoggedData;
   } Gyro_erad_PWORK;                   /* '<S4>/Gyro_e [rad]' */
 
   struct {
@@ -1025,18 +1008,6 @@ typedef struct {
   struct {
     void *LoggedData;
   } a_zms2_PWORK;                      /* '<S4>/a_z [m//s^2]' */
-
-  struct {
-    void *LoggedData;
-  } omega_erads_PWORK;                 /* '<S4>/omega_e [rad//s]' */
-
-  struct {
-    void *LoggedData;
-  } omega_lambdarads_PWORK;            /* '<S4>/omega_lambda [rad//s]' */
-
-  struct {
-    void *LoggedData;
-  } omega_prads_PWORK;                 /* '<S4>/omega_p [rad//s]' */
 
   struct {
     void *LoggedData;
@@ -1114,14 +1085,12 @@ typedef struct {
 /* Continuous states (default storage) */
 typedef struct {
   real_T ElevationTransferFcn_CSTATE;  /* '<S5>/Elevation: Transfer Fcn' */
-  real_T Integrator2_CSTATE;           /* '<S8>/Integrator2' */
-  real_T Integrator1_CSTATE;           /* '<S8>/Integrator1' */
   real_T Integrator3_CSTATE;           /* '<S8>/Integrator3' */
   real_T Integrator_CSTATE;            /* '<Root>/Integrator' */
   real_T PitchTransferFcn_CSTATE;      /* '<S5>/Pitch: Transfer Fcn' */
-  real_T Integrator1_CSTATE_p;         /* '<Root>/Integrator1' */
+  real_T Integrator1_CSTATE;           /* '<Root>/Integrator1' */
   real_T TravelTransferFcn_CSTATE;     /* '<S5>/Travel: Transfer Fcn' */
-  real_T Integrator2_CSTATE_j;         /* '<Root>/Integrator2' */
+  real_T Integrator2_CSTATE;           /* '<Root>/Integrator2' */
   real_T Integrator3_CSTATE_b;         /* '<Root>/Integrator3' */
   real_T Integrator4_CSTATE;           /* '<Root>/Integrator4' */
   real_T gamma_CSTATE;                 /* '<S9>/gamma' */
@@ -1132,14 +1101,12 @@ typedef struct {
 /* State derivatives (default storage) */
 typedef struct {
   real_T ElevationTransferFcn_CSTATE;  /* '<S5>/Elevation: Transfer Fcn' */
-  real_T Integrator2_CSTATE;           /* '<S8>/Integrator2' */
-  real_T Integrator1_CSTATE;           /* '<S8>/Integrator1' */
   real_T Integrator3_CSTATE;           /* '<S8>/Integrator3' */
   real_T Integrator_CSTATE;            /* '<Root>/Integrator' */
   real_T PitchTransferFcn_CSTATE;      /* '<S5>/Pitch: Transfer Fcn' */
-  real_T Integrator1_CSTATE_p;         /* '<Root>/Integrator1' */
+  real_T Integrator1_CSTATE;           /* '<Root>/Integrator1' */
   real_T TravelTransferFcn_CSTATE;     /* '<S5>/Travel: Transfer Fcn' */
-  real_T Integrator2_CSTATE_j;         /* '<Root>/Integrator2' */
+  real_T Integrator2_CSTATE;           /* '<Root>/Integrator2' */
   real_T Integrator3_CSTATE_b;         /* '<Root>/Integrator3' */
   real_T Integrator4_CSTATE;           /* '<Root>/Integrator4' */
   real_T gamma_CSTATE;                 /* '<S9>/gamma' */
@@ -1150,14 +1117,12 @@ typedef struct {
 /* State disabled  */
 typedef struct {
   boolean_T ElevationTransferFcn_CSTATE;/* '<S5>/Elevation: Transfer Fcn' */
-  boolean_T Integrator2_CSTATE;        /* '<S8>/Integrator2' */
-  boolean_T Integrator1_CSTATE;        /* '<S8>/Integrator1' */
   boolean_T Integrator3_CSTATE;        /* '<S8>/Integrator3' */
   boolean_T Integrator_CSTATE;         /* '<Root>/Integrator' */
   boolean_T PitchTransferFcn_CSTATE;   /* '<S5>/Pitch: Transfer Fcn' */
-  boolean_T Integrator1_CSTATE_p;      /* '<Root>/Integrator1' */
+  boolean_T Integrator1_CSTATE;        /* '<Root>/Integrator1' */
   boolean_T TravelTransferFcn_CSTATE;  /* '<S5>/Travel: Transfer Fcn' */
-  boolean_T Integrator2_CSTATE_j;      /* '<Root>/Integrator2' */
+  boolean_T Integrator2_CSTATE;        /* '<Root>/Integrator2' */
   boolean_T Integrator3_CSTATE_b;      /* '<Root>/Integrator3' */
   boolean_T Integrator4_CSTATE;        /* '<Root>/Integrator4' */
   boolean_T gamma_CSTATE;              /* '<S9>/gamma' */
@@ -1191,13 +1156,13 @@ typedef struct {
 
 /* Parameters (default storage) */
 struct P_heli_q8_Part4_Working_T_ {
-  real_T A_d[144];                     /* Variable: A_d
+  real_T A_d[36];                      /* Variable: A_d
                                         * Referenced by: '<S8>/Constant'
                                         */
-  real_T B_d[24];                      /* Variable: B_d
+  real_T B_d[12];                      /* Variable: B_d
                                         * Referenced by: '<S8>/Constant1'
                                         */
-  real_T C_d[144];                     /* Variable: C_d
+  real_T C_d[36];                      /* Variable: C_d
                                         * Referenced by: '<S8>/Constant5'
                                         */
   real_T F[4];                         /* Variable: F
@@ -1212,19 +1177,19 @@ struct P_heli_q8_Part4_Working_T_ {
   real_T K[10];                        /* Variable: K
                                         * Referenced by: '<S9>/K'
                                         */
-  real_T P_0[144];                     /* Variable: P_0
+  real_T P_0[36];                      /* Variable: P_0
                                         * Referenced by: '<S8>/Constant4'
                                         */
-  real_T Q_d[144];                     /* Variable: Q_d
+  real_T Q_d[36];                      /* Variable: Q_d
                                         * Referenced by: '<S8>/Constant2'
                                         */
-  real_T R_d2[144];                    /* Variable: R_d2
+  real_T R_d2[36];                     /* Variable: R_d2
                                         * Referenced by: '<S8>/Constant6'
                                         */
   real_T V_s0;                         /* Variable: V_s0
                                         * Referenced by: '<S9>/Constant'
                                         */
-  real_T x_0[12];                      /* Variable: x_0
+  real_T x_0[6];                       /* Variable: x_0
                                         * Referenced by: '<S8>/Constant3'
                                         */
   uint32_T HILWriteAnalog_channels[2];/* Mask Parameter: HILWriteAnalog_channels
@@ -1311,12 +1276,6 @@ struct P_heli_q8_Part4_Working_T_ {
   real_T Constant_Value_j;             /* Expression: 0.4768
                                         * Referenced by: '<S4>/Constant'
                                         */
-  real_T Integrator2_IC;               /* Expression: 0
-                                        * Referenced by: '<S8>/Integrator2'
-                                        */
-  real_T Integrator1_IC;               /* Expression: 0
-                                        * Referenced by: '<S8>/Integrator1'
-                                        */
   real_T Integrator3_IC;               /* Expression: 0
                                         * Referenced by: '<S8>/Integrator3'
                                         */
@@ -1374,7 +1333,7 @@ struct P_heli_q8_Part4_Working_T_ {
   real_T PitchTransferFcn_D;           /* Computed Parameter: PitchTransferFcn_D
                                         * Referenced by: '<S5>/Pitch: Transfer Fcn'
                                         */
-  real_T Integrator1_IC_c;             /* Expression: 0
+  real_T Integrator1_IC;               /* Expression: 0
                                         * Referenced by: '<Root>/Integrator1'
                                         */
   real_T TravelCounttorad_Gain;        /* Expression: 2*pi/8192
@@ -1389,7 +1348,7 @@ struct P_heli_q8_Part4_Working_T_ {
   real_T TravelTransferFcn_D;         /* Computed Parameter: TravelTransferFcn_D
                                        * Referenced by: '<S5>/Travel: Transfer Fcn'
                                        */
-  real_T Integrator2_IC_h;             /* Expression: 0
+  real_T Integrator2_IC;               /* Expression: 0
                                         * Referenced by: '<Root>/Integrator2'
                                         */
   real_T Integrator3_IC_o;             /* Expression: 0
@@ -1683,7 +1642,7 @@ struct tag_RTM_heli_q8_Part4_Working_T {
   boolean_T zCCacheNeedsReset;
   boolean_T derivCacheNeedsReset;
   boolean_T CTOutputIncnstWithState;
-  real_T odeF[1][14];
+  real_T odeF[1][12];
   ODE1_IntgData intgData;
   void *dwork;
 
