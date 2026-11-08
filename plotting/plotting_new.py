@@ -3,6 +3,7 @@ import numpy as np
 import scipy.io as sio  # Scipy input output har funksjon for lesing av .mat-filer
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
+import matplotlib.patheffects as pe
 
 
 def load_mat(path, Ts=0.002):
@@ -81,15 +82,20 @@ signals = [
 signals += [("Ukjent", f"signal {i}") for i in range(len(signals), values.shape[1])]
 labels = [f"{src} {name}" for src, name in signals]
 
-## Farger per kilde: én tydelig hovedfarge per kilde.
-# Hvis flere signaler fra samme kilde havner i samme subplot, brukes neste farge i lista.
-source_colors = {
-    "Encoder":       ["#1f77b4", "#17becf", "#9467bd"],  # blå, cyan, lilla
-    "Gyroscope":     ["#d62728", "#ff7f0e", "#e377c2"],  # rød, oransje, rosa
-    "Accelerometer": ["#2ca02c", "#bcbd22", "#8c564b"],  # grønn, olivengul, brun
-    "Joystick":      ["#7f7f7f", "#000000"],             # grå, svart
-    "Euler":         ["#9467bd", "#8c564b", "#e377c2"],
-    "Ukjent":        ["#9467bd", "#8c564b", "#e377c2"],
+## Stil per kilde: farge, linjetykkelse, gjennomsiktighet og lag.
+# colors : én tydelig hovedfarge per kilde. Er flere signaler fra samme kilde i samme subplot,
+#          brukes neste farge i lista. Ingen hovedfarger er delt mellom kilder.
+# lw     : linjetykkelse
+# alpha  : 1 = helt dekkende, 0 = usynlig
+# z      : lag. Høyest tall tegnes ØVERST. Encoder ligger øverst så den ikke drukner i sensorstøyen.
+# halo   : True = tynn hvit kant rundt linja, så den skiller seg ut fra det som ligger under
+source_style = {
+    "Encoder":       dict(colors=["#0b3c8c", "#17becf", "#6a3d9a"], lw=1.3, alpha=1.0,  z=4, halo=False),  # mørkeblå
+    "Euler":         dict(colors=["#2ca02c", "#98df8a", "#bcbd22"], lw=0.9, alpha=0.8,  z=2, halo=False),  # grønn
+    "Gyroscope":     dict(colors=["#ff7f0e", "#ffbb78", "#e377c2"], lw=1.6, alpha=0.6,  z=1, halo=False),  # oransje, bredere under
+    "Accelerometer": dict(colors=["#d62728", "#8c564b", "#e377c2"], lw=1.2, alpha=0.75, z=2, halo=False),  # rød
+    "Joystick":      dict(colors=["#7f7f7f", "#000000"],            lw=1.5, alpha=1.0,  z=3, halo=False),  # grå
+    "Ukjent":        dict(colors=["#9467bd", "#8c564b", "#e377c2"], lw=1.2, alpha=0.7,  z=1, halo=False),
 }
 
 ## Velg subplots her (1 til MAX_SUBPLOTS stykker).
@@ -147,12 +153,8 @@ CM = 1 / 2.54  # matplotlib bruker tommer
 ## Plotting
 assert 1 <= len(subplots) <= MAX_SUBPLOTS, f"Velg mellom 1 og {MAX_SUBPLOTS} subplots (har {len(subplots)})"
 
-# Gjennomsiktighet på linjene: 1 = helt dekkende, 0 = usynlig
-line_alpha = 0.7
-# Rekkefølge: signalene tegnes i den rekkefølgen de står i `subplots`-lista,
-# så det SISTE signalet havner ØVERST. Bytt rekkefølge der for å endre hva som ligger på toppen.
-# Sett reverse_draw_order = True for å snu rekkefølgen i alle subplots (legenden beholder lista-rekkefølgen).
-reverse_draw_order = False
+# Hvilket signal som ligger øverst styres av "z" i source_style over (ikke av rekkefølgen i lista).
+# Legenden følger rekkefølgen i `subplots`-lista.
 
 # True  = y-aksen sentreres rundt 0 (like langt opp som ned)
 # False = y-aksen tilpasses dataene automatisk
@@ -187,12 +189,15 @@ for ax, (title, indices) in zip(axes, subplots):
         src = signals[i][0]
         k = used.get(src, 0)
         used[src] = k + 1
-        palette = source_colors[src]
+        style = source_style[src]
+        palette = style["colors"]
         ax.plot(t_vis, values_vis[:, i],
                 color=palette[k % len(palette)],
-                linewidth=1.5,
-                alpha=line_alpha,
-                zorder=(n - pos) if reverse_draw_order else (pos + 1),
+                linewidth=style["lw"],
+                alpha=style["alpha"],
+                zorder=style["z"] + 0.01 * pos,  # samme kilde: den siste i lista øverst
+                path_effects=[pe.Stroke(linewidth=style["lw"] + 1.6, foreground="white"), pe.Normal()]
+                             if style["halo"] else None,
                 label=signals[i][0] if src_count[signals[i][0]] == 1 else labels[i])
     if center_zero:
         y_lo, y_hi = ax.get_ylim()  # automatisk skalering, inkludert litt luft
@@ -211,8 +216,9 @@ for ax, (title, indices) in zip(axes, subplots):
                     borderaxespad=1.6)  # avstand i skriftstørrelser, så den havner under tidstallene
     leg.set_in_layout(False)  # ikke la legenden presse plottene smalere
     for line in leg.get_lines():  # tykkere og helt dekkende linjer i legenden, så fargene er lette å se
-        line.set_linewidth(2)
+        line.set_linewidth(2.5)
         line.set_alpha(1)
+        line.set_path_effects([])
 
 # Ekstra vertikal luft mellom subplots, der legendene ligger (i tommer)
 fig.get_layout_engine().set(h_pad=0.15)
