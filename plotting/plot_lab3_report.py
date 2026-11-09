@@ -1,71 +1,77 @@
-"""Kompakte figurer til Lab 3-rapporten.
+"""Kompakte figurer til Lab 3-rapporten, i samme stil som plot_alle.py.
 
 Kjør fra repo-rota:  uv run --project plotting python plotting/plot_lab3_report.py
 Lager:
-  HelikopterParakopter/Lab3/Report_ObserverPoles_Compare.pdf  (pitch + travel, to kjøringer oppå hverandre)
-  HelikopterParakopter/Lab3/Report_ElevationInFlight.pdf      (akselerometer-elevasjon vs encoder i flyvning)
+  HelikopterParakopter/Lab3/Report_ObserverPoles_Compare.pdf  (encoder: pitch, elevation, travel for tre kjøringer)
+  HelikopterParakopter/Lab3/Report_ElevationInFlight.pdf      (elevasjon fra akselerometeret mot encoder i flyvning)
 """
 import os
+import sys
 import numpy as np
-import scipy.io as sio
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-LAB3 = "HelikopterParakopter/Lab3"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from plot_alle import load_mat, FORMATER, STIL, CM, K  # noqa: E402
 
-# ---- FYLL INN: hvilke poler som ble brukt i hver kjøring ----
+LAB3 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "HelikopterParakopter", "Lab3")
+
+# Kjøringene som sammenlignes.
 RUNS = [
-    ("2_3_3_PolesAtneg8_WithPush.mat",      r"Observer poles $\{-6,\dots,-10\}$"),
-    ("2_3_3_LambdasExtremelyToTheLeft.mat", r"Observer poles far left [FYLL INN]"),
+    ("2_3_3_FirstLQRRun_WithoutEstimator.mat", "No observer", "#7f7f7f"),
+    ("2_3_3_PolesAtneg8_WithPush.mat",        r"Poles $-6,\dots,-10$", "#0b3c8c"),
+    ("2_3_3_LambdasExtremelyToTheLeft.mat",   r"Poles $\approx -100$", "#d62728"),
 ]
-T_MAX = 55  # [s] felles tidsvindu
+T_MAX = 55  # [s] felles tidsvindu (kortest av kjøringene)
 
-CM = 1 / 2.54
-plt.rcParams.update({"font.size": 11})
-
-
-def load(path):
-    d = sio.loadmat(path)
-    if "simout" in d:
-        s = d["simout"][0, 0]
-        return np.ravel(s["time"]), s["signals"][0, 0]["values"]
-    a = d["ans"]
-    return a[0], a[1:].T
+f = FORMATER["hel"]
+rc = {"font.size": f["font"], "axes.titlesize": f["font"], "axes.labelsize": f["font"],
+      "xtick.labelsize": f["font"], "ytick.labelsize": f["font"], "legend.fontsize": f["font"]}
 
 
-# Kolonner (samme rekkefølge som Mux i Simulink)
-TRAVEL, PITCH, ELEV, IMU_ELEV = 0, 2, 4, 15
+def legend_over(fig, ax, ncol):
+    leg = fig.legend(*ax.get_legend_handles_labels(), loc="outside upper center", ncol=ncol,
+                     frameon=False, handlelength=1.6, handletextpad=0.4, columnspacing=1.2)
+    for line in leg.get_lines():
+        line.set_linewidth(2.2)
+        line.set_alpha(1)
 
-# ---------- Figur 1: to kjøringer oppå hverandre ----------
-fig, axes = plt.subplots(2, 1, figsize=(16 * CM, 9 * CM), sharex=True, layout="constrained")
-colors = ["#0b3c8c", "#d62728"]
-for (fname, label), c in zip(RUNS, colors):
-    t, v = load(os.path.join(LAB3, fname))
-    k = (t >= 0.05) & (t <= T_MAX)
-    axes[0].plot(t[k], v[k, PITCH], color=c, lw=1.0, label=label)
-    axes[1].plot(t[k], v[k, TRAVEL] - v[k, TRAVEL][0], color=c, lw=1.3, label=label)
-axes[0].set_ylabel("Pitch [rad]")
-axes[1].set_ylabel("Travel [rad]")
-axes[1].set_xlabel("Time [s]")
-for ax in axes:
+
+with plt.rc_context(rc):
+    # ---------- Figur 1: tre kjøringer oppå hverandre (bare encoder = fasit) ----------
+    paneler = [("Pitch [rad]", K["pitch"], False), ("Elevation [rad]", K["elev"], False),
+               ("Travel [rad]", K["travel"], True)]
+    fig, axes = plt.subplots(3, 1, figsize=(f["bredde"] * CM, (3 * 3.2 + 1.8) * CM), sharex=True,
+                             layout="constrained")
+    for fname, label, farge in RUNS:
+        t, V = load_mat(os.path.join(LAB3, fname))
+        k = (t >= 0.05) & (t <= T_MAX)
+        for ax, (tittel, kol, fra_null) in zip(axes, paneler):
+            y = V[k, kol] - (V[k, kol][0] if fra_null else 0)
+            ax.plot(t[k], y, color=farge, lw=1.2, alpha=0.9, label=label)
+    for ax, (tittel, _, _) in zip(axes, paneler):
+        ax.set_title(tittel, loc="left")
+        ax.grid(True, alpha=0.3)
+    axes[-1].set_xlim(0, T_MAX)
+    fig.supxlabel("Time [s]", fontsize=f["font"])
+    legend_over(fig, axes[0], ncol=3)
+    fig.savefig(os.path.join(LAB3, "Report_ObserverPoles_Compare.pdf"))
+    plt.close(fig)
+
+    # ---------- Figur 2: elevasjon fra akselerometeret i flyvning ----------
+    t, V = load_mat(os.path.join(LAB3, RUNS[1][0]))
+    k = (t >= 20) & (t <= 30)
+    fig, ax = plt.subplots(figsize=(f["bredde"] * CM, 5.5 * CM), layout="constrained")
+    acc, enc = STIL["Accelerometer"], STIL["Encoder"]
+    ax.plot(t[k], V[k, K["e_acc"]], color=acc["colors"][0], lw=0.8, alpha=acc["alpha"], label="Accelerometer")
+    ax.plot(t[k], V[k, K["elev"]], color=enc["colors"][0], lw=enc["lw"], label="Encoder")
+    ax.set_title("Elevation [rad]", loc="left")
+    ax.set_xlim(20, 30)
     ax.grid(True, alpha=0.3)
-leg = fig.legend(*axes[0].get_legend_handles_labels(), loc="outside upper center", ncol=2, frameon=False)
-for line in leg.get_lines():
-    line.set_linewidth(2.5)
-axes[1].set_xlim(0, T_MAX)
-fig.savefig(os.path.join(LAB3, "Report_ObserverPoles_Compare.pdf"))
+    fig.supxlabel("Time [s]", fontsize=f["font"])
+    legend_over(fig, ax, ncol=2)
+    fig.savefig(os.path.join(LAB3, "Report_ElevationInFlight.pdf"))
+    plt.close(fig)
 
-# ---------- Figur 2: akselerometer-elevasjon i flyvning ----------
-t, v = load(os.path.join(LAB3, RUNS[0][0]))
-k = (t >= 20) & (t <= 30)
-fig, ax = plt.subplots(figsize=(16 * CM, 5.5 * CM), layout="constrained")
-ax.plot(t[k], v[k, IMU_ELEV], color="#d62728", lw=0.6, alpha=0.8, label="Accelerometer")
-ax.plot(t[k], v[k, ELEV], color="#0b3c8c", lw=1.5, label="Encoder")
-ax.set_ylabel("Elevation [rad]")
-ax.set_xlabel("Time [s]")
-ax.set_xlim(20, 30)
-ax.grid(True, alpha=0.3)
-leg = fig.legend(*ax.get_legend_handles_labels(), loc="outside upper center", ncol=2, frameon=False)
-for line in leg.get_lines():
-    line.set_linewidth(2.5)
-fig.savefig(os.path.join(LAB3, "Report_ElevationInFlight.pdf"))
-print("Lagret figurene i", LAB3)
+print("Lagret Report_ObserverPoles_Compare.pdf og Report_ElevationInFlight.pdf i", LAB3)

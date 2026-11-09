@@ -66,14 +66,14 @@ def load_mat(path, Ts=TS):
 #   6 signaler : Lab 1 og de første Lab 2-stegtestene (bare encoder)
 #   8          : + joystick (= referansen r = [p_c, ė_c])
 #  14          : + akselerometer og gyro (rå IMU)                              Lab 3, håndtester
-#  19          : + Euler-vinkler fra akselerometer og Euler-rater fra gyro     Lab 3
+#  19          : + vinkler fra akselerometeret og gyro transformert til ṗ, ė, λ̇  Lab 3
 #  22          : + integrert gyro (∫ṗ, ∫ė, ∫λ̇)                                 Lab 4
 #  28/31/34    : + Kalman-estimatet x̂ = [p ṗ e ė λ λ̇] (+ 3 eller 6 bias-tilstander)
 # ----------------------------------------------------------------------------------------------
 K = dict(travel=0, travel_rate=1, pitch=2, pitch_rate=3, elev=4, elev_rate=5,
          joy_x=6, joy_y=7,
          acc_x=8, acc_y=9, acc_z=10, gyro_p=11, gyro_e=12, gyro_l=13,
-         eul_p=14, eul_e=15, eul_pd=16, eul_ed=17, eul_ld=18,
+         p_acc=14, e_acc=15, pd_gyro=16, ed_gyro=17, ld_gyro=18,
          int_p=19, int_e=20, int_l=21,
          xh_p=22, xh_pd=23, xh_e=24, xh_ed=25, xh_l=26, xh_ld=27)
 IMU_KOLONNER = range(8, 22)  # alt som kommer fra IMU-en (ikke encoder, joystick eller x̂)
@@ -87,15 +87,19 @@ STIL = {
     "Reference":       dict(colors=["#000000"], lw=1.2, alpha=0.9, z=5, ls="--"),
     "Encoder":         dict(colors=["#0b3c8c"], lw=1.5, alpha=0.7, z=4, ls="-"),            # mørkeblå
     "Kalman":          dict(colors=["#d62728"], lw=1.2, alpha=0.85, z=3, ls="-"),           # rød
-    "Euler":           dict(colors=["#2ca02c"], lw=1.6, alpha=0.7, z=2, ls="-"),            # grønn, bredere enn x̂
-    "Integrated gyro": dict(colors=["#9467bd"], lw=2.4, alpha=0.5, z=1.5, ls="-"),          # lilla, bred under x̂
-                                                                                          # så den synes selv når x̂ = måling
-    "Gyroscope":       dict(colors=["#ff7f0e", "#17becf", "#bcbd22"], lw=2.2, alpha=0.6, z=1, ls="-"),  # oransje, cyan, oliven
-    "Accelerometer":   dict(colors=["#9467bd", "#8c564b", "#e377c2"], lw=1.0, alpha=0.8, z=1, ls="-"),  # lilla, brun, rosa
+    # Målingene er bredere enn x̂ og ligger under, så de synes som en kant selv når x̂ = måling.
+    # Accelerometer: vinkler regnet fra akselerometeret (lign. 2.19). I håndtestene: rå x/y/z.
+    "Accelerometer":   dict(colors=["#2ca02c", "#8c564b", "#e377c2"], lw=1.6, alpha=0.7, z=2, ls="-"),  # grønn, brun, rosa
+    # Gyro: gyromålingen transformert til Euler-rater (ṗ, ė, λ̇). I håndtestene: rå gyro per akse.
+    "Gyro":            dict(colors=["#ff7f0e", "#17becf", "#bcbd22"], lw=1.6, alpha=0.7, z=2, ls="-"),  # oransje, cyan, oliven
+    # Gyro (raw): rå gyro før transformasjonen, bare der den sammenlignes med den transformerte (2.3.2)
+    "Gyro (raw)":      dict(colors=["#17becf"], lw=2.2, alpha=0.6, z=1, ls="-"),            # cyan
+    "Integrated gyro": dict(colors=["#9467bd"], lw=2.4, alpha=0.5, z=1.5, ls="-"),          # lilla
 }
 
-# Fast rekkefølge i den felles legenden: fasit, målinger, estimat, referanse
-LEGEND_REKKEFOLGE = ["Encoder", "Euler", "Integrated gyro", "Gyroscope", "Accelerometer", "Kalman", "Reference"]
+# Fast rekkefølge i den felles legenden: fasit, målinger, estimat, referanse.
+# "Gyro (raw)" må stå før "Gyro" fordi labelen sammenlignes med startswith.
+LEGEND_REKKEFOLGE = ["Encoder", "Accelerometer", "Gyro (raw)", "Gyro", "Integrated gyro", "Kalman", "Reference"]
 
 # Størrelser. bredde = bredden figuren får i rapporten.
 FORMATER = {
@@ -131,12 +135,12 @@ def har_xhat(V):
 
 def vinkelmaaling(V):
     """Hvilken vinkelmåling ble sendt til Kalmanfilteret?
-    De første Lab 4-forsøkene brukte integrert gyro, "AI_Help"-forsøkene akselerometer (Euler).
+    De første Lab 4-forsøkene brukte integrert gyro, "AI_Help"-forsøkene akselerometervinkler.
     Filteret følger målingen tett, så vi velger den som ligger nærmest x̂_p."""
-    ok = np.isfinite(V[:, K["eul_p"]]) & np.isfinite(V[:, K["int_p"]])
-    feil_euler = np.nanmean((V[ok, K["xh_p"]] - V[ok, K["eul_p"]]) ** 2)
+    ok = np.isfinite(V[:, K["p_acc"]]) & np.isfinite(V[:, K["int_p"]])
+    feil_acc = np.nanmean((V[ok, K["xh_p"]] - V[ok, K["p_acc"]]) ** 2)
     feil_int = np.nanmean((V[ok, K["xh_p"]] - V[ok, K["int_p"]]) ** 2)
-    return "Euler" if feil_euler < feil_int else "Integrated gyro"
+    return "Accelerometer" if feil_acc < feil_int else "Integrated gyro"
 
 
 # ----------------------------------------------------------------------------------------------
@@ -185,9 +189,9 @@ def oppsett_lab3_handtest(navn, t, V):
     return "halv", [
         panel(f"{akse} [rad]", [sig("Encoder", K[vinkel])]),
         panel(f"{akse} rate [rad/s]", [sig("Encoder", K[rate]),
-                                       sig("Gyroscope", K["gyro_p"], "p"),
-                                       sig("Gyroscope", K["gyro_e"], "e"),
-                                       sig("Gyroscope", K["gyro_l"], "λ")], sentrer_null=True),
+                                       sig("Gyro", K["gyro_p"], "p"),
+                                       sig("Gyro", K["gyro_e"], "e"),
+                                       sig("Gyro", K["gyro_l"], "λ")], sentrer_null=True),
         panel("Accelerometer [m/s²]", [sig("Accelerometer", K["acc_x"], "x"),
                                        sig("Accelerometer", K["acc_y"], "y"),
                                        sig("Accelerometer", K["acc_z"], "z")]),
@@ -195,64 +199,64 @@ def oppsett_lab3_handtest(navn, t, V):
 
 
 def oppsett_lab3_gyro(navn, t, V):
-    # 2.3.2/2.3.3: rå gyro mot gyro transformert til Euler-rater, og akselerometer-vinkler, mot encoder.
+    # 2.3.2/2.3.3: rå gyro mot gyro transformert til ṗ, ė, λ̇, og akselerometervinkler, mot encoder.
     return "rutenett", [
-        panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig("Euler", K["eul_p"])]),
-        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Gyroscope", K["gyro_p"]),
-                                     sig("Euler", K["eul_pd"])], sentrer_null=True),
-        panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig("Euler", K["eul_e"])]),
-        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Gyroscope", K["gyro_e"]),
-                                         sig("Euler", K["eul_ed"])], sentrer_null=True),
+        panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig("Accelerometer", K["p_acc"])]),
+        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Gyro (raw)", K["gyro_p"]),
+                                     sig("Gyro", K["pd_gyro"])], sentrer_null=True),
+        panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig("Accelerometer", K["e_acc"])]),
+        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Gyro (raw)", K["gyro_e"]),
+                                         sig("Gyro", K["ed_gyro"])], sentrer_null=True),
         panel("Travel [rad]", [sig("Encoder", K["travel"])]),
-        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Gyroscope", K["gyro_l"]),
-                                      sig("Euler", K["eul_ld"])], sentrer_null=True),
+        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Gyro (raw)", K["gyro_l"]),
+                                      sig("Gyro", K["ld_gyro"])], sentrer_null=True),
     ], 2
 
 
 def oppsett_lab3_flyging(navn, t, V):
-    # LQR med Luenberger-observer: IMU-målingene (Euler) mot encoder, og sporing av referansen.
+    # LQR med Luenberger-observer: akselerometer- og gyromålingene mot encoder, og sporing av referansen.
     return "rutenett", [
-        panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig("Euler", K["eul_p"])] + referanse(V, K["joy_x"])),
-        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Euler", K["eul_pd"])], sentrer_null=True),
-        panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig("Euler", K["eul_e"])]),
-        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Euler", K["eul_ed"])]
+        panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig("Accelerometer", K["p_acc"])] + referanse(V, K["joy_x"])),
+        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Gyro", K["pd_gyro"])], sentrer_null=True),
+        panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig("Accelerometer", K["e_acc"])]),
+        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Gyro", K["ed_gyro"])]
               + referanse(V, K["joy_y"]), sentrer_null=True),
         panel("Travel [rad]", [sig("Encoder", K["travel"])]),
-        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Euler", K["eul_ld"])], sentrer_null=True),
+        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Gyro", K["ld_gyro"])], sentrer_null=True),
     ], 2
 
 
 def oppsett_lab4_imu(navn, t, V):
     # 2.4.1 uten Kalman: målingene som R_d estimeres fra (akselerometer-vinkler og integrert gyro) mot encoder.
     return "rutenett", [
-        panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig("Euler", K["eul_p"]),
+        panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig("Accelerometer", K["p_acc"]),
                               sig("Integrated gyro", K["int_p"])] + referanse(V, K["joy_x"])),
-        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Euler", K["eul_pd"])], sentrer_null=True),
-        panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig("Euler", K["eul_e"]),
+        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Gyro", K["pd_gyro"])], sentrer_null=True),
+        panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig("Accelerometer", K["e_acc"]),
                                   sig("Integrated gyro", K["int_e"])]),
-        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Euler", K["eul_ed"])]
+        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Gyro", K["ed_gyro"])]
               + referanse(V, K["joy_y"]), sentrer_null=True),
         panel("Travel [rad]", [sig("Encoder", K["travel"]), sig("Integrated gyro", K["int_l"])]),
-        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Euler", K["eul_ld"])], sentrer_null=True),
+        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Gyro", K["ld_gyro"])], sentrer_null=True),
     ], 2
 
 
 def oppsett_lab4_kalman(navn, t, V):
     # Kalmanfilter: encoder (fasit) mot målingen filteret fikk, mot estimatet x̂.
     m = vinkelmaaling(V)
-    p_maal = K["eul_p"] if m == "Euler" else K["int_p"]
-    e_maal = K["eul_e"] if m == "Euler" else K["int_e"]
+    p_maal = K["p_acc"] if m == "Accelerometer" else K["int_p"]
+    e_maal = K["e_acc"] if m == "Accelerometer" else K["int_e"]
     return "rutenett", [
         panel("Pitch [rad]", [sig("Encoder", K["pitch"]), sig(m, p_maal), sig("Kalman", K["xh_p"])]
               + referanse(V, K["joy_x"])),
-        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Euler", K["eul_pd"]),
+        panel("Pitch rate [rad/s]", [sig("Encoder", K["pitch_rate"]), sig("Gyro", K["pd_gyro"]),
                                      sig("Kalman", K["xh_pd"])], sentrer_null=True),
         panel("Elevation [rad]", [sig("Encoder", K["elev"]), sig(m, e_maal), sig("Kalman", K["xh_e"])]),
-        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Euler", K["eul_ed"]),
+        panel("Elevation rate [rad/s]", [sig("Encoder", K["elev_rate"]), sig("Gyro", K["ed_gyro"]),
                                          sig("Kalman", K["xh_ed"])] + referanse(V, K["joy_y"]), sentrer_null=True),
         panel("Travel [rad]", [sig("Encoder", K["travel"]), sig("Integrated gyro", K["int_l"]),
                                sig("Kalman", K["xh_l"])]),
-        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Euler", K["eul_ld"]),
+        panel("Travel rate [rad/s]", [sig("Encoder", K["travel_rate"]), sig("Gyro", K["ld_gyro"]),
                                       sig("Kalman", K["xh_ld"])], sentrer_null=True),
     ], 2
 
@@ -382,7 +386,7 @@ def tegn(path, t, V, fmt, paneler, ncols, ugyldig_encoder):
                              handlelength=1.6, handletextpad=0.4, columnspacing=1.2)
             for line in leg.get_lines():
                 line.set_linewidth(2.2); line.set_alpha(1)
-        fig.supxlabel("Tid [s]", fontsize=f["font"])
+        fig.supxlabel("Time [s]", fontsize=f["font"])
         pdf = os.path.splitext(path)[0] + ".pdf"
         fig.savefig(pdf)
         plt.close(fig)
@@ -396,7 +400,7 @@ def plott_fil(path):
     # Hopp over starten av målingen
     keep = (t - t[0]) >= T_START
     t, V = t[keep], V[keep].copy()
-    # IMU-en leverer ikke data de første ~0.35 s (alle akselerometerverdier er 0). Euler-vinklene blir da
+    # IMU-en leverer ikke data de første ~0.35 s (alle akselerometerverdier er 0). Akselerometervinklene blir da
     # atan(0/0) = π/2. Disse samplene er ikke målinger, så de fjernes fra IMU-signalene.
     if V.shape[1] >= 14:
         tom = (V[:, K["acc_x"]] == 0) & (V[:, K["acc_y"]] == 0) & (V[:, K["acc_z"]] == 0)

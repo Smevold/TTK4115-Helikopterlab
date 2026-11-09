@@ -68,14 +68,14 @@ signals = [
     ("Accelerometer", "x-direction"),
     ("Accelerometer", "y-direction"),
     ("Accelerometer", "z-direction"),
-    ("Gyroscope",     "p-direction"),
-    ("Gyroscope",     "e-direction"),
-    ("Gyroscope",     "lambda-direction"),
-    ("Euler", "pitch"),
-    ("Euler", "elevation"),
-    ("Euler",     "pitch rate"),
-    ("Euler",     "elevation rate"),
-    ("Euler",     "travel rate"),
+    ("Gyro (raw)",    "p-direction"),       # rå gyro, før transformasjonen
+    ("Gyro (raw)",    "e-direction"),
+    ("Gyro (raw)",    "lambda-direction"),
+    ("Accelerometer", "pitch"),             # vinkel regnet fra akselerometeret (lign. 2.19)
+    ("Accelerometer", "elevation"),
+    ("Gyro",          "pitch rate"),        # gyro transformert til ṗ, ė, λ̇
+    ("Gyro",          "elevation rate"),
+    ("Gyro",          "travel rate"),
 ]
 
 # Mangler det signaler i lista, får resten kilden "Ukjent".
@@ -91,9 +91,9 @@ labels = [f"{src} {name}" for src, name in signals]
 # halo   : True = tynn hvit kant rundt linja, så den skiller seg ut fra det som ligger under
 source_style = {
     "Encoder":       dict(colors=["#0b3c8c", "#17becf", "#6a3d9a"], lw=1.3, alpha=1.0,  z=4, halo=False),  # mørkeblå
-    "Euler":         dict(colors=["#2ca02c", "#98df8a", "#bcbd22"], lw=0.9, alpha=0.8,  z=2, halo=False),  # grønn
-    "Gyroscope":     dict(colors=["#ff7f0e", "#ffbb78", "#e377c2"], lw=1.6, alpha=0.6,  z=1, halo=False),  # oransje, bredere under
-    "Accelerometer": dict(colors=["#d62728", "#8c564b", "#e377c2"], lw=1.2, alpha=0.75, z=2, halo=False),  # rød
+    "Accelerometer": dict(colors=["#2ca02c", "#8c564b", "#e377c2"], lw=0.9, alpha=0.8,  z=2, halo=False),  # grønn, brun, rosa
+    "Gyro":          dict(colors=["#ff7f0e", "#bcbd22", "#e377c2"], lw=0.9, alpha=0.8,  z=2, halo=False),  # oransje
+    "Gyro (raw)":    dict(colors=["#17becf", "#ffbb78", "#98df8a"], lw=1.6, alpha=0.6,  z=1, halo=False),  # cyan, bredere under
     "Joystick":      dict(colors=["#7f7f7f", "#000000"],            lw=1.5, alpha=1.0,  z=3, halo=False),  # grå
     "Ukjent":        dict(colors=["#9467bd", "#8c564b", "#e377c2"], lw=1.2, alpha=0.7,  z=1, halo=False),
 }
@@ -222,7 +222,7 @@ for ax, (title, indices) in zip(axes, subplots):
 
 # Ekstra vertikal luft mellom subplots, der legendene ligger (i tommer)
 fig.get_layout_engine().set(h_pad=0.15)
-fig.supxlabel("Tid [s]", fontsize=font_size)  # nederst i figuren, under siste legend
+fig.supxlabel("Time [s]", fontsize=font_size)  # nederst i figuren, under siste legend
 axes[-1].set_xlim(x_min, x_max)  # gjelder alle subplots pga. sharex
 
 ## Lagre PDF i samme mappe som .mat-filen, med samme navn
