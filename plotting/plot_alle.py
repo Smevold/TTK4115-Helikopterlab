@@ -415,6 +415,61 @@ def plott_fil(path):
     return pdf, merknad
 
 
+# ----------------------------------------------------------------------------------------------
+# Lab 1: polplasseringene oppå hverandre, og det ustabile forsøket i en egen figur
+# ----------------------------------------------------------------------------------------------
+# (fil, polene i legenden, farge). Fargene er Okabe-Ito: skiller seg godt, også for fargeblinde.
+# Legenden har tre kolonner: første rad er de reelle stabile polene, andre rad de komplekse.
+LAB1_SAMMENLIGNING = [
+    ("verdier_lab_1_v05.mat",     r"$\lambda_{1,2} = -0.5$",            "#0072B2"),  # blå
+    ("verdier_lab_1_v1.mat",      r"$\lambda_{1,2} = -1$",              "#E69F00"),  # oransje
+    ("verdier_lab_1_v2.mat",      r"$\lambda_{1,2} = -2$",              "#009E73"),  # grønn
+    ("lab1_complex_conjugat.mat", r"$\lambda_{1,2} = -3 \pm 2i$",       "#CC79A7"),  # rosa
+    ("lab1_ren_imaginær.mat",     r"$\lambda_{1,2} = \pm 2i$",          "#000000"),  # svart
+]
+# Det ustabile forsøket går til ±1.8 rad og ±6 rad/s og ville gjort de andre flate, så det får egen figur.
+LAB1_USTABIL = [
+    ("lab1 _1_-2.mat",            r"$\lambda_1 = 1,\ \lambda_2 = -2$",  "#D55E00"),  # rødoransje
+]
+LAB1_LENGDE = 10.0  # [s] alle forsøkene kuttes til samme lengde (alle letter ved t ≈ 0.5 s)
+
+
+def lab1_figur(forsok, ut):
+    """Pitch og pitch rate for flere forsøk oppå hverandre, 0 til LAB1_LENGDE sekunder.
+    Begge Lab 1-figurene får samme størrelse og tidsakse, så de kan sammenlignes i rapporten."""
+    mappe = os.path.join(DATA, "Lab1")
+    f = FORMATER["hel"]
+    paneler = [("Pitch [rad]", K["pitch"]), ("Pitch rate [rad/s]", K["pitch_rate"])]
+    rc = {"font.size": f["font"], "axes.titlesize": f["font"], "axes.labelsize": f["font"],
+          "xtick.labelsize": f["font"], "ytick.labelsize": f["font"], "legend.fontsize": f["font"]}
+    with plt.rc_context(rc):
+        fig, axes = plt.subplots(len(paneler), 1, figsize=(f["bredde"] * CM, (len(paneler) * 4.4 + 2.0) * CM),
+                                 sharex=True, layout="constrained")
+        for n, (fil, navn, farge) in enumerate(forsok):
+            t, V = load_mat(os.path.join(mappe, fil))
+            t = t - t[0]
+            keep = (t >= T_START) & (t <= LAB1_LENGDE)
+            if t[-1] < LAB1_LENGDE - 0.1:
+                print(f"     merk: {fil} er bare {t[-1]:.1f} s lang")
+            for ax, (tittel, kol) in zip(axes, paneler):
+                ax.plot(t[keep], V[keep, kol], color=farge, lw=1.3, alpha=0.9, zorder=10 - n, label=navn)
+        for ax, (tittel, kol) in zip(axes, paneler):
+            ax.set_title(tittel, loc="left")
+            ax.grid(True, alpha=0.3)
+            ax.set_xlim(0, LAB1_LENGDE)
+        h, l = axes[0].get_legend_handles_labels()
+        ncol = min(3, len(h))
+        leg = fig.legend(rad_for_rad(h, ncol), rad_for_rad(l, ncol), loc="outside upper center", ncol=ncol,
+                         frameon=False, handlelength=1.8, handletextpad=0.5, columnspacing=1.6)
+        for line in leg.get_lines():
+            line.set_linewidth(2.5); line.set_alpha(1)
+        fig.supxlabel("Time [s]", fontsize=f["font"])
+        pdf = os.path.join(mappe, ut)
+        fig.savefig(pdf)
+        plt.close(fig)
+    return pdf
+
+
 def finn_filer(filtre):
     filer = []
     for p in sorted(glob.glob(os.path.join(DATA, "**", "*.mat"), recursive=True)):
@@ -436,3 +491,7 @@ if __name__ == "__main__":
             print(f"{'OK  ' if pdf else '--  '} {rel}: {merknad}")
         except Exception as e:  # én dårlig fil skal ikke stoppe resten
             print(f"FEIL {rel}: {e}")
+    if not sys.argv[1:] or any("Lab1" in a or "lab1" in a for a in sys.argv[1:]):
+        for forsok, ut in [(LAB1_SAMMENLIGNING, "lab1_sammenligning.pdf"), (LAB1_USTABIL, "lab1_ustabil.pdf")]:
+            pdf = lab1_figur(forsok, ut)
+            print(f"OK   {os.path.relpath(pdf, REPO)}: {len(forsok)} Lab 1-forsøk i samme figur")

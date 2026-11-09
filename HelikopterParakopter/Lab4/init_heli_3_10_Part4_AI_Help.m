@@ -3,9 +3,9 @@
 % the course TTK4115. Run this file before you execute QuaRC_ -> Build 
 % to build the file heli_q8.mdl.
 
-% Oppdatert høsten 2006 av Jostein Bakkeheim
-% Oppdatert høsten 2008 av Arnfinn Aas Eielsen
-% Oppdatert høsten 2009 av Jonathan Ronen
+% Oppdatert hï¿½sten 2006 av Jostein Bakkeheim
+% Oppdatert hï¿½sten 2008 av Arnfinn Aas Eielsen
+% Oppdatert hï¿½sten 2009 av Jonathan Ronen
 % Updated fall 2010, Dominik Breu
 % Updated fall 2013, Mark Haring
 % Updated spring 2015, Mark Haring
@@ -126,7 +126,7 @@ F = [K(1,1) K(1,3)
 %% Kalman
 
 % Tilstand: x = [p; p_dot; e; e_dot; lambda; lambda_dot]
-% Måling:   y = [Acc_p; Gyro_p_dot; Acc_e; Gyro_e_dot; Guro_lambda; Gyro_lambda_dot]
+% Mï¿½ling:   y = [Acc_p; Gyro_p_dot; Acc_e; Gyro_e_dot; Guro_lambda; Gyro_lambda_dot]
 
 Ts = 0.002;
 
@@ -151,11 +151,11 @@ D_K = zeros(6,2);
 bruk_van_loan = true;
 bruk_bias = true;
 
-%% Målestøy R_d
+%% Mï¿½lestï¿½y R_d
 
-Stoyfil   = '2_4_3_AI_Help_wVanLoan_BiasEst.mat';
+Stoyfil = '2_4_3_AI_Help_wVanLoan_BiasEst.mat';
 Stoytid = 5000:20000; % Fjerne lift-off
-y_kolonner  = [15 17 16 18 22 19]; % Samme rekkefølge som y
+y_kolonner  = [15 17 16 18 22 19]; % Samme rekkefï¿½lge som y
 
 H = load(Stoyfil);
 if isfield(H, 'simout')
@@ -168,9 +168,9 @@ Y_Stoy = V(Stoytid, y_kolonner);
 R_full = cov(Y_Stoy); % Full matrise
 R_d2   = diag(diag(R_full)); % Bare diagonalen brukes i filteret
 
-%% Prosesstøy Q_d
+%% Prosesstï¿½y Q_d
 
-% Tunet av Claude mot encoder, deretter ganget med 3 for å passe til R_d fra cov.
+% Tunet av Claude mot encoder, deretter ganget med 3 for ï¿½ passe til R_d fra cov.
 q_diag = [3e-12 3e-5 6e-8 1.5e-5 0.6 1.5e-7];
 
 % Q_d6 = diag(q_diag);
@@ -189,7 +189,7 @@ end
 
 %% Diskretisering og startverdier
 
-e_offset = -pi/6; % Elevation starter på -pi/6
+e_offset = -pi/6; % Elevation starter pï¿½ -pi/6
 
 if ~bruk_bias % IKKE bruk_bias
     
@@ -211,7 +211,7 @@ if ~bruk_bias % IKKE bruk_bias
     P_0 = zeros(6);
     
 else
-    % Bonus 2: bias på pdot-, edot- og lambdadot-gyroen: y_rate = rate + b
+    % Bonus 2: bias pï¿½ pdot-, edot- og lambdadot-gyroen: y_rate = rate + b
     
     S = zeros(6,3);  
     S(2,1) = 1; 

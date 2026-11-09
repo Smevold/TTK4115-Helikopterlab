@@ -3,9 +3,9 @@
 % the course TTK4115. Run this file before you execute QuaRC_ -> Build 
 % to build the file heli_q8.mdl.
 
-% Oppdatert høsten 2006 av Jostein Bakkeheim
-% Oppdatert høsten 2008 av Arnfinn Aas Eielsen
-% Oppdatert høsten 2009 av Jonathan Ronen
+% Oppdatert hï¿½sten 2006 av Jostein Bakkeheim
+% Oppdatert hï¿½sten 2008 av Arnfinn Aas Eielsen
+% Oppdatert hï¿½sten 2009 av Jonathan Ronen
 % Updated fall 2010, Dominik Breu
 % Updated fall 2013, Mark Haring
 % Updated spring 2015, Mark Haring
@@ -46,10 +46,10 @@ K_2 = L_3/J_e;
 K_3 = (2*m_p*l_h - m_c*l_c)*g/J_l;
 
 lambda_1 = -1i;
-lambda_2 =+1i;
+lambda_2 = +1i;
 
-K_pp = - (lambda_1 + lambda_2)/K_1;
-K_pd = lambda_1*lambda_2/K_1;
+K_pd = - (lambda_1 + lambda_2)/K_1;
+K_pp = lambda_1*lambda_2/K_1;
 
 %%
 
