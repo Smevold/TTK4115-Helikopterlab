@@ -125,9 +125,6 @@ F = [K(1,1) K(1,3)
 
 %% Kalman
 
-% Tilstand: x = [p; p_dot; e; e_dot; lambda; lambda_dot]
-% M�ling:   y = [Acc_p; Gyro_p_dot; Acc_e; Gyro_e_dot; Guro_lambda; Gyro_lambda_dot]
-
 Ts = 0.002;
 
 A_K = [0 1 0 0 0 0
