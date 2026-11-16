@@ -22,6 +22,7 @@ import sys
 import glob
 import numpy as np
 import scipy.io as sio
+from scipy.signal import butter, filtfilt
 import matplotlib
 matplotlib.use("Agg")  # lagrer bare til fil, åpner ikke vinduer
 import matplotlib.pyplot as plt
@@ -470,6 +471,126 @@ def lab1_figur(forsok, ut):
     return pdf
 
 
+# ----------------------------------------------------------------------------------------------
+# Lab 4: Kalmanfiltre med ulik Q_d oppå hverandre
+# ----------------------------------------------------------------------------------------------
+# Flygningene er nesten like, men ikke helt. Derfor sammenlignes estimeringsfeilen x̂ − encoder,
+# der hvert forsøk måles mot sin egen encoder. Feilen viser både støy og bias i estimatet.
+# forsok: (fil, navn i legenden, farge, linjebredde, gjennomsiktighet, lag). Det mest støyete bakerst.
+# Alle forsøkene kuttes til det korteste, og ved kutt_ved_imu_dod også der IMU-en sluttet å levere data.
+# elevasjon_fra_hvile: encoder-elevasjonen måles fra verdien ved t = 0. Brukes når filteret startet i
+#   x̂_e = 0 og encoder-offseten var ulik mellom forsøkene (2.4.2), så offseten ikke ser ut som feil.
+# Konstanten som den gamle modellen (heli_q8_Part4.slx) la til e_acc. Den gikk rett inn i x̂_e, så
+# x̂_e kan rettes i ettertid ved å trekke den fra: e-delen av filteret (e, ė) er frikoblet fra resten,
+# så en konstant feil i e_acc gir den samme konstante feilen i x̂_e. Offseten gikk også inn i
+# Euler-transformasjonen (ṗ og λ̇ bruker e), og DET kan ikke rettes uten å kjøre filteret på nytt.
+GAMMEL_E_OFFSET = 0.4768  # [rad]
+# etterjustering: {fil: {kolonne: konstant som legges til}} før feilen regnes ut, fra første IMU-sample
+LAB4_SAMMENLIGNINGER = [
+    dict(ut="2_4_3_Improved_Q_d6_sammenligning.pdf",
+         forsok=[("2_4_3_Improved_Q_d6_1e-2.mat", r"$Q_d = 10^{-2}\,I$", "#E69F00", 1.6, 0.7, 1),   # oransje
+                 ("2_4_3_Improved_Q_d6_1e-6.mat", r"$Q_d = 10^{-6}\,I$", "#0072B2", 1.0, 0.95, 2)],  # blå
+         kutt_ved_imu_dod="2_4_3_Improved_Q_d6_1e-2.mat", elevasjon_fra_hvile=False),
+    dict(ut="2_4_2_q_sammenligning.pdf",
+         forsok=[("2_4_2_q_100000.mat",  r"$Q_d = 10^{5}\,I$",  "#009E73", 2.4, 0.7, 1),   # grønn, bredest bak
+                 ("2_4_2_q_0_01.mat",    r"$Q_d = 10^{-2}\,I$", "#E69F00", 1.3, 0.8, 2),   # oransje
+                 ("2_4_2_q_0_00001.mat", r"$Q_d = 10^{-5}\,I$", "#0072B2", 1.0, 0.95, 3)],  # blå, tynt foran
+         kutt_ved_imu_dod=None, elevasjon_fra_hvile=True),
+    # GoodFlight: 6 tilstander (ingen bias) og ikke "wVanLoan" i navnet, så antatt uten Van Loan.
+    # Den ble fløyet med +0.4768 på e_acc. Offseten trekkes fra x̂_e i ettertid (se etterjustering).
+    dict(ut="2_4_3_Improved_sammenligning.pdf",  # rekkefølgen er også rekkefølgen i legenden
+         forsok=[("2_4_3_Improved_GoodFlight.mat",        "No Van Loan, no bias", "#E69F00", 2.0, 0.7, 1),
+                 ("2_4_3_Improved_wVanLoan_woOffset.mat", "Van Loan, no bias",    "#009E73", 1.4, 0.8, 2),
+                 ("2_4_3_Improved_wVanLoan_BiasEst.mat",  "Van Loan + bias",      "#0072B2", 1.0, 0.95, 3)],
+         kutt_ved_imu_dod=None, elevasjon_fra_hvile=False,
+         etterjustering={"2_4_3_Improved_GoodFlight.mat": {"xh_e": -GAMMEL_E_OFFSET}}),
+]
+# Encoder-ratene har kvantiseringsstøy (±0.07 rad/s) som ellers ville sett ut som feil i x̂.
+# De lavpassfiltreres derfor null-fase (filtfilt, ingen forsinkelse) før feilen regnes ut.
+# Samme knekkfrekvens som i Lab4_Kalman_analyse: 50/(s+50). Sett til None for å bruke rå encoder-rate.
+LAB4_ENCODER_RATE_LAVPASS = 50.0  # [rad/s]
+
+
+def siste_imu_tid(t, V):
+    """Tidspunktet der IMU-en leverte sin siste nye verdi (etter det er alle IMU-signalene frosne)."""
+    imu = V[:, K["acc_x"]:K["gyro_l"] + 1]
+    endret = np.where(np.any(np.diff(imu, axis=0) != 0, axis=1))[0]
+    return t[endret[-1] + 1]
+
+
+def lab4_kalman_sammenligning(ut, forsok, kutt_ved_imu_dod=None, elevasjon_fra_hvile=False, etterjustering=None):
+    mappe = os.path.join(DATA, "Lab4")
+    data = {}
+    for fil, *_ in forsok:
+        t, V = load_mat(os.path.join(mappe, fil))
+        for kol, verdi in (etterjustering or {}).get(fil, {}).items():
+            # Bare fra første IMU-sample: før det har filteret ikke fått målingen med offseten
+            start = np.argmax(np.any(V[:, K["acc_x"]:K["acc_z"] + 1] != 0, axis=1))
+            V[start:, K[kol]] += verdi
+            print(f"     {fil}: {kol} {verdi:+.4f} i ettertid, fra t = {t[start] - t[0]:.2f} s")
+        data[fil] = (t - t[0], V)
+    t_slutt = min(t[-1] for t, _ in data.values())
+    if kutt_ved_imu_dod:
+        t, V = data[kutt_ved_imu_dod]
+        t_slutt = min(t_slutt, siste_imu_tid(t, V))
+        print(f"     IMU-en døde ved t = {siste_imu_tid(t, V):.2f} s i {kutt_ved_imu_dod}")
+    print(f"     alle kuttes ved t = {t_slutt:.2f} s")
+    paneler = [  # (tittel, encoder, x̂)
+        (r"Pitch: $\hat{p} - p$ [rad]", "pitch", "xh_p"),
+        (r"Pitch rate: $\hat{\dot{p}} - \dot{p}$ [rad/s]", "pitch_rate", "xh_pd"),
+        (r"Elevation: $\hat{e} - e$ [rad]", "elev", "xh_e"),
+        (r"Elevation rate: $\hat{\dot{e}} - \dot{e}$ [rad/s]", "elev_rate", "xh_ed"),
+        (r"Travel: $\hat{\lambda} - \lambda$ [rad]", "travel", "xh_l"),
+        (r"Travel rate: $\hat{\dot{\lambda}} - \dot{\lambda}$ [rad/s]", "travel_rate", "xh_ld"),
+    ]
+    f = FORMATER["rutenett"]
+    rc = {"font.size": f["font"], "axes.titlesize": f["font"], "axes.labelsize": f["font"],
+          "xtick.labelsize": f["font"], "ytick.labelsize": f["font"], "legend.fontsize": f["font"]}
+    with plt.rc_context(rc):
+        fig, axes = plt.subplots(3, 2, figsize=(f["bredde"] * CM, (3 * f["panelhoyde"] + 2.0) * CM),
+                                 sharex=True, layout="constrained")
+        feil = {i: [] for i in range(len(paneler))}
+        for fil, navn, farge, lw, alpha, z in forsok:
+            t, V = data[fil]
+            keep = (t >= T_START) & (t <= t_slutt)
+            rms = []
+            for i, (ax, (tittel, enc, xh)) in enumerate(zip(axes.flat, paneler)):
+                fasit = V[:, K[enc]]
+                if enc.endswith("_rate") and LAB4_ENCODER_RATE_LAVPASS:
+                    b, a = butter(1, LAB4_ENCODER_RATE_LAVPASS / (np.pi / TS))  # Nyquist = π/Ts rad/s
+                    fasit = filtfilt(b, a, fasit)
+                if enc == "elev" and elevasjon_fra_hvile:
+                    fasit = fasit - fasit[0]
+                y = V[keep, K[xh]] - fasit[keep]
+                ax.plot(t[keep], y, color=farge, lw=lw, alpha=alpha, zorder=z, label=navn)
+                feil[i].append(y)
+                rms.append(np.sqrt(np.mean(y ** 2)))
+            print(f"     {fil}: RMS-feil " + ", ".join(f"{p[1]} {r:.3g}" for p, r in zip(paneler, rms)))
+        for i, (ax, (tittel, enc, xh)) in enumerate(zip(axes.flat, paneler)):
+            alle = np.concatenate(feil[i])
+            lo, hi = min(np.percentile(alle, 0.1), 0), max(np.percentile(alle, 99.9), 0)
+            luft = 0.08 * (hi - lo)
+            ax.set_ylim(lo - luft, hi + luft)
+            ax.axhline(0, color="0.35", lw=0.8, zorder=10)  # null feil
+            ax.set_title(tittel, loc="left")
+            ax.grid(True, alpha=0.3)
+            ax.set_xlim(0, np.ceil(t_slutt * 10) / 10)  # 19.998 s -> 20 s, så siste tikk kommer med
+        h, l = axes.flat[0].get_legend_handles_labels()
+        if all("10^{" in x for x in l):  # Q_d-sammenligninger: minst Q_d først
+            rekkefolge = np.argsort([float(x.split("10^{")[1].split("}")[0]) for x in l])
+        else:  # ellers samme rekkefølge som i forsok
+            rekkefolge = range(len(l))
+        leg = fig.legend([h[j] for j in rekkefolge], [l[j] for j in rekkefolge], loc="outside upper center",
+                         ncol=len(h), frameon=False, handlelength=1.8, handletextpad=0.5, columnspacing=2.0)
+        for line in leg.get_lines():
+            line.set_linewidth(2.5); line.set_alpha(1)
+        fig.supxlabel("Time [s]", fontsize=f["font"])
+        pdf = os.path.join(mappe, ut)
+        fig.savefig(pdf)
+        plt.close(fig)
+    return pdf
+
+
 def finn_filer(filtre):
     filer = []
     for p in sorted(glob.glob(os.path.join(DATA, "**", "*.mat"), recursive=True)):
@@ -495,3 +616,8 @@ if __name__ == "__main__":
         for forsok, ut in [(LAB1_SAMMENLIGNING, "lab1_sammenligning.pdf"), (LAB1_USTABIL, "lab1_ustabil.pdf")]:
             pdf = lab1_figur(forsok, ut)
             print(f"OK   {os.path.relpath(pdf, REPO)}: {len(forsok)} Lab 1-forsøk i samme figur")
+    for sml in LAB4_SAMMENLIGNINGER:
+        if not sys.argv[1:] or any(a in "Lab4" or a in sml["ut"] or any(a in f[0] for f in sml["forsok"])
+                                   for a in sys.argv[1:]):
+            pdf = lab4_kalman_sammenligning(**sml)
+            print(f"OK   {os.path.relpath(pdf, REPO)}: {len(sml['forsok'])} Kalman-forsøk i samme figur")
