@@ -150,7 +150,7 @@ bruk_bias = true;
 
 %% M�lest�y R_d
 
-Stoyfil = '2_4_3_AI_Help_wVanLoan_BiasEst.mat';
+Stoyfil = '2_4_3_Improved_wVanLoan_BiasEst.mat';
 Stoytid = 5000:20000; % Fjerne lift-off
 y_kolonner  = [15 17 16 18 22 19]; % Samme rekkef�lge som y
 
